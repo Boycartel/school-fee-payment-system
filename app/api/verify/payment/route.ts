@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     let paymentResult
 
     if (searchType === "reference") {
-      // Search by payment reference
+      // Search by payment reference - check payments table directly
       paymentResult = await sql`
         SELECT 
           p.*,
