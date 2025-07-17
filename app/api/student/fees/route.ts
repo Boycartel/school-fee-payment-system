@@ -50,7 +50,14 @@ export async function GET(request: NextRequest) {
               AND p.installment_number = 2
           ) THEN true 
           ELSE false 
-        END as second_installment_paid
+        END as second_installment_paid,
+        COALESCE(
+          (SELECT SUM(p.amount) FROM payments p 
+           WHERE p.user_id = ${studentData.id} 
+             AND p.school_fee_id = sf.id 
+             AND p.status = 'verified'), 
+          0
+        ) as total_paid_amount
       FROM school_fees sf
       JOIN school_fee_assignments sfa ON sf.id = sfa.fee_id
       JOIN school_fee_levels sfl ON sf.id = sfl.fee_id
@@ -61,7 +68,7 @@ export async function GET(request: NextRequest) {
       ORDER BY sf.academic_session DESC
     `
 
-    // Process fees to add installment percentages for backward compatibility
+    // Process fees to add installment percentages and check for full payment completion
     const processedFees = fees.map((fee) => {
       let firstPercentage = 70
       let secondPercentage = 30
@@ -76,10 +83,19 @@ export async function GET(request: NextRequest) {
         secondPercentage = fee.second_installment_percentage
       }
 
+      // Check if total paid amount equals or exceeds the full fee amount
+      const isFullyPaidByAmount = fee.total_paid_amount >= fee.amount
+
+      // If fully paid by amount, mark both installments as paid
+      const actualFirstInstallmentPaid = fee.first_installment_paid || isFullyPaidByAmount
+      const actualSecondInstallmentPaid = fee.second_installment_paid || isFullyPaidByAmount
+
       return {
         ...fee,
         first_installment_percentage: firstPercentage,
         second_installment_percentage: secondPercentage,
+        first_installment_paid: actualFirstInstallmentPaid,
+        second_installment_paid: actualSecondInstallmentPaid,
         semester: "All Semesters", // For backward compatibility
       }
     })
