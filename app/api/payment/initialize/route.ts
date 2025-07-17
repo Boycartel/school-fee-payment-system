@@ -53,36 +53,6 @@ export async function POST(request: NextRequest) {
 
     const fee = feeResult[0]
 
-    // Check if user has made any payment before for this session
-    const anyExistingPayment = await sql`
-      SELECT * FROM payments 
-      WHERE user_id = ${student.id} 
-        AND school_fee_id = ${schoolFeeId}
-        AND status = 'verified'
-    `
-
-    // Calculate total amount paid so far
-    const totalPaidAmount = anyExistingPayment.reduce((sum, payment) => sum + Number(payment.amount), 0)
-
-    // If this is a full payment and user has no previous payments, mark installment as 100%
-    if (isFullPayment && anyExistingPayment.length === 0 && Number(amount) === Number(fee.amount)) {
-      // Update the school fee to mark both installments as paid (100%)
-      await sql`
-        UPDATE school_fees 
-        SET first_installment_paid = true, second_installment_paid = true
-        WHERE id = ${schoolFeeId}
-      `
-    }
-    // If user has made previous payments and current payment completes the full amount
-    else if (anyExistingPayment.length > 0 && totalPaidAmount + Number(amount) >= Number(fee.amount)) {
-      // Update the school fee to mark both installments as paid (100%)
-      await sql`
-        UPDATE school_fees 
-        SET first_installment_paid = true, second_installment_paid = true
-        WHERE id = ${schoolFeeId}
-      `
-    }
-
     // Check if payment already exists for this installment
     const existingPayment = await sql`
       SELECT * FROM payments 
