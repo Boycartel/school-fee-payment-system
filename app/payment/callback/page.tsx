@@ -4,41 +4,23 @@ import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, XCircle, Loader2, Receipt, ArrowLeft } from "lucide-react"
-import Link from "next/link"
-
-interface PaymentResult {
-  success: boolean
-  message: string
-  payment?: {
-    reference: string
-    amount: number
-    status: string
-    receipt_number: string
-  }
-  student?: {
-    full_name: string
-    email: string
-  }
-}
+import { CheckCircle, XCircle, Loader2, Mail } from "lucide-react"
 
 export default function PaymentCallback() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [result, setResult] = useState<PaymentResult | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [emailSending, setEmailSending] = useState(false)
+  const [status, setStatus] = useState<"loading" | "success" | "failed">("loading")
+  const [paymentData, setPaymentData] = useState<any>(null)
+  const [emailStatus, setEmailStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle")
 
   useEffect(() => {
     const reference = searchParams.get("reference")
-    if (reference) {
-      verifyPayment(reference)
+    const trxref = searchParams.get("trxref")
+
+    if (reference || trxref) {
+      verifyPayment(reference || trxref)
     } else {
-      setResult({
-        success: false,
-        message: "No payment reference provided",
-      })
-      setLoading(false)
+      setStatus("failed")
     }
   }, [searchParams])
 
@@ -53,26 +35,26 @@ export default function PaymentCallback() {
       })
 
       const data = await response.json()
-      setResult(data)
 
-      // If payment is successful, send email receipt
-      if (data.success && data.payment?.status === "verified") {
-        await sendEmailReceipt(reference)
+      if (data.success && data.payment?.status === "success") {
+        setStatus("success")
+        setPaymentData(data.payment)
+
+        // Automatically send receipt email
+        sendReceiptEmail(reference)
+      } else {
+        setStatus("failed")
       }
     } catch (error) {
-      console.error("Payment verification error:", error)
-      setResult({
-        success: false,
-        message: "Failed to verify payment. Please try again.",
-      })
-    } finally {
-      setLoading(false)
+      console.error("Payment verification failed:", error)
+      setStatus("failed")
     }
   }
 
-  const sendEmailReceipt = async (reference: string) => {
+  const sendReceiptEmail = async (reference: string) => {
+    setEmailStatus("sending")
+
     try {
-      setEmailSending(true)
       const response = await fetch("/api/payment/send-receipt", {
         method: "POST",
         headers: {
@@ -82,26 +64,55 @@ export default function PaymentCallback() {
       })
 
       const data = await response.json()
+
       if (data.success) {
-        console.log("Receipt email sent successfully")
+        setEmailStatus("sent")
       } else {
-        console.error("Failed to send receipt email:", data.error)
+        setEmailStatus("failed")
       }
     } catch (error) {
-      console.error("Error sending receipt email:", error)
-    } finally {
-      setEmailSending(false)
+      console.error("Failed to send receipt email:", error)
+      setEmailStatus("failed")
     }
   }
 
-  if (loading) {
+  const handleReturnToDashboard = () => {
+    router.push("/student/dashboard")
+  }
+
+  const handleViewReceipt = () => {
+    if (paymentData?.reference) {
+      router.push(`/payment/receipt/${paymentData.reference}`)
+    }
+  }
+
+  if (status === "loading") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <Card className="w-full max-w-md bg-slate-800/50 border-slate-700">
-          <CardContent className="p-8 text-center">
-            <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-blue-400" />
-            <h3 className="text-xl font-semibold mb-2 text-white">Verifying Payment</h3>
-            <p className="text-gray-300">Please wait while we confirm your payment...</p>
+      <div className="min-h-screen bg-fpb-blue flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center p-8">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Verifying Payment</h2>
+            <p className="text-gray-600 text-center">Please wait while we confirm your payment...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (status === "failed") {
+    return (
+      <div className="min-h-screen bg-fpb-blue flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <CardTitle className="text-red-600">Payment Failed</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-gray-600">Your payment could not be processed. Please try again or contact support.</p>
+            <Button onClick={handleReturnToDashboard} className="w-full">
+              Return to Dashboard
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -109,83 +120,59 @@ export default function PaymentCallback() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-slate-800/50 border-slate-700">
+    <div className="min-h-screen bg-fpb-blue flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4">
-            {result?.success ? (
-              <CheckCircle className="w-16 h-16 text-green-400" />
-            ) : (
-              <XCircle className="w-16 h-16 text-red-400" />
-            )}
-          </div>
-          <CardTitle className="text-2xl text-white">
-            {result?.success ? "Payment Successful!" : "Payment Failed"}
-          </CardTitle>
+          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          <CardTitle className="text-green-600">Payment Successful!</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="text-center">
-            <p className="text-gray-300 mb-4">{result?.message}</p>
-
-            {result?.success && result.payment && (
-              <div className="bg-slate-700/50 rounded-lg p-4 space-y-2 text-left">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Reference:</span>
-                  <span className="text-white font-mono">{result.payment.reference}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Amount:</span>
-                  <span className="text-green-400 font-semibold">₦{result.payment.amount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Receipt No:</span>
-                  <span className="text-white font-mono">{result.payment.receipt_number}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Status:</span>
-                  <span className="text-green-400 capitalize">{result.payment.status}</span>
-                </div>
-              </div>
-            )}
-
-            {emailSending && (
-              <div className="bg-blue-900/30 border border-blue-400/30 rounded-lg p-3 mt-4">
-                <div className="flex items-center justify-center gap-2 text-blue-300">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Sending receipt to your email...</span>
-                </div>
-              </div>
-            )}
-
-            {result?.success && !emailSending && (
-              <div className="bg-green-900/30 border border-green-400/30 rounded-lg p-3 mt-4">
-                <div className="flex items-center justify-center gap-2 text-green-300">
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="text-sm">Receipt sent to {result.student?.email}</span>
-                </div>
+        <CardContent className="space-y-4">
+          <div className="text-center space-y-2">
+            <p className="text-gray-600">Your payment has been processed successfully.</p>
+            {paymentData && (
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <p>
+                  <strong>Amount:</strong> ₦{paymentData.amount?.toLocaleString()}
+                </p>
+                <p>
+                  <strong>Reference:</strong> {paymentData.reference}
+                </p>
+                <p>
+                  <strong>Date:</strong> {new Date(paymentData.created_at).toLocaleDateString()}
+                </p>
               </div>
             )}
           </div>
 
-          <div className="flex flex-col gap-3">
-            {result?.success && result.payment && (
-              <Link href={`/payment/receipt/${result.payment.reference}`}>
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
-                  <Receipt className="w-4 h-4 mr-2" />
-                  View Receipt
-                </Button>
-              </Link>
+          {/* Email Status */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="flex items-center space-x-2 mb-2">
+              <Mail className="h-5 w-5 text-blue-600" />
+              <span className="font-medium text-blue-800">Receipt Email</span>
+            </div>
+            {emailStatus === "sending" && (
+              <div className="flex items-center space-x-2 text-blue-600">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Sending receipt to your email...</span>
+              </div>
             )}
+            {emailStatus === "sent" && (
+              <p className="text-sm text-green-600">✓ Receipt sent to your email successfully!</p>
+            )}
+            {emailStatus === "failed" && (
+              <p className="text-sm text-red-600">
+                ✗ Failed to send receipt email. You can download it from your dashboard.
+              </p>
+            )}
+          </div>
 
-            <Link href="/student/dashboard">
-              <Button
-                variant="outline"
-                className="w-full border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white bg-transparent"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </Link>
+          <div className="space-y-2">
+            <Button onClick={handleViewReceipt} className="w-full bg-transparent" variant="outline">
+              View Receipt
+            </Button>
+            <Button onClick={handleReturnToDashboard} className="w-full">
+              Return to Dashboard
+            </Button>
           </div>
         </CardContent>
       </Card>
