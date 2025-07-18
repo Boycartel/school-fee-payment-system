@@ -34,10 +34,9 @@ export async function POST(request: NextRequest) {
         LEFT JOIN school_fees sf ON p.school_fee_id = sf.id
         WHERE p.reference = ${searchQuery}
         ORDER BY p.payment_date DESC
-        LIMIT 1
       `
     } else if (searchType === "matricNumber") {
-      // Search by matric number - get most recent verified payment
+      // Search by matric number - get all verified payments
       paymentResult = await sql`
         SELECT 
           p.*,
@@ -59,10 +58,9 @@ export async function POST(request: NextRequest) {
         WHERE UPPER(u.matric_number) = UPPER(${searchQuery})
           AND p.status = 'verified'
         ORDER BY p.payment_date DESC
-        LIMIT 1
       `
     } else if (searchType === "email") {
-      // Search by email - get most recent verified payment
+      // Search by email - get all verified payments
       paymentResult = await sql`
         SELECT 
           p.*,
@@ -84,7 +82,6 @@ export async function POST(request: NextRequest) {
         WHERE u.email = ${searchQuery}
           AND p.status = 'verified'
         ORDER BY p.payment_date DESC
-        LIMIT 1
       `
     } else {
       return NextResponse.json({ error: "Invalid search type" }, { status: 400 })
@@ -94,24 +91,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No payment found" }, { status: 404 })
     }
 
-    const payment = paymentResult[0]
-
-    // Calculate total payments for this student and session
+    // Calculate total payments for this student
+    const userId = paymentResult[0].user_id
     const totalPaymentsResult = await sql`
       SELECT 
         COALESCE(SUM(amount), 0) as total_paid,
         COUNT(*) as payment_count
       FROM payments
-      WHERE user_id = ${payment.user_id}
-        AND school_fee_id = ${payment.school_fee_id}
+      WHERE user_id = ${userId}
         AND status = 'verified'
     `
 
     const totalPaid = Number(totalPaymentsResult[0]?.total_paid || 0)
     const paymentCount = Number(totalPaymentsResult[0]?.payment_count || 0)
 
-    // Format the response
-    const verificationResult = {
+    // Format all payments
+    const payments = paymentResult.map((payment) => ({
       full_name: payment.full_name,
       matric_number: payment.matric_number,
       email: payment.email,
@@ -127,15 +122,26 @@ export async function POST(request: NextRequest) {
       fee_name: payment.fee_name,
       fee_description: payment.fee_description,
       passport_photo: payment.passport_photo,
-      total_paid: totalPaid,
-      payment_count: paymentCount,
       installment_number: payment.installment_number || 1,
       total_installments: payment.total_installments || 1,
-    }
+    }))
 
     return NextResponse.json({
       success: true,
-      payment: verificationResult,
+      payments: payments,
+      summary: {
+        total_paid: totalPaid,
+        payment_count: paymentCount,
+        student_info: {
+          full_name: paymentResult[0].full_name,
+          matric_number: paymentResult[0].matric_number,
+          email: paymentResult[0].email,
+          phone: paymentResult[0].phone,
+          department_name: paymentResult[0].department_name,
+          school_name: paymentResult[0].school_name,
+          passport_photo: paymentResult[0].passport_photo,
+        },
+      },
     })
   } catch (error) {
     console.error("Payment verification error:", error)
