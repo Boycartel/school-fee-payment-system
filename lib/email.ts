@@ -24,6 +24,8 @@ export interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions) {
   try {
+    console.log("Sending email to:", options.to)
+
     const result = await transporter.sendMail({
       from: `"Federal Polytechnic Bida" <${process.env.GMAIL_USER}>`,
       to: options.to,
@@ -36,7 +38,10 @@ export async function sendEmail(options: EmailOptions) {
     return { success: true, messageId: result.messageId }
   } catch (error) {
     console.error("Failed to send email:", error)
-    throw error
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
   }
 }
 
@@ -69,4 +74,15 @@ export function getPaymentConfirmationTemplate(data: {
       <p>Best regards,<br>Federal Polytechnic Bida</p>
     </div>
   `
+}
+
+export async function verifyEmailConnection() {
+  try {
+    await transporter.verify()
+    console.log("Email server connection verified")
+    return true
+  } catch (error) {
+    console.error("Email server connection failed:", error)
+    return false
+  }
 }
