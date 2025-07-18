@@ -99,7 +99,7 @@ export default function VerifyPayment() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          searchType: "reference",
+          searchType: searchType, // Use the actual searchType state
           searchQuery: searchValue,
         }),
       })
@@ -195,13 +195,34 @@ export default function VerifyPayment() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="searchType" className="text-gray-300">
+                  Search By
+                </Label>
+                <select
+                  id="searchType"
+                  className="w-full p-2 border rounded-md bg-slate-700 border-slate-600 text-white"
+                  value={searchType}
+                  onChange={(e) => setSearchType(e.target.value)}
+                >
+                  <option value="reference">Payment Reference</option>
+                  <option value="matricNumber">Matric Number</option>
+                  <option value="email">Email Address</option>
+                </select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="search" className="text-gray-300">
                   Matric Number / Email / Payment Reference
                 </Label>
                 <Input
                   id="search"
                   type="text"
-                  placeholder="e.g., FPB/2023/001, student@example.com, or payment reference"
+                  placeholder={
+                    searchType === "matricNumber"
+                      ? "e.g. 2023/1/123456CS"
+                      : searchType === "email"
+                        ? "e.g. student@fpb.edu.ng"
+                        : "e.g. REF123456789"
+                  }
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400"
