@@ -86,40 +86,43 @@ export async function POST(request: NextRequest) {
       ORDER BY installment_number
     `
 
-    // Calculate payment summary
-    const totalPaid = allPaymentsResult.reduce((sum, p) => sum + Number(p.amount), 0)
-    const balance = Number(paymentDetails.total_fee_amount) - totalPaid
+    // Calculate payment summary with proper null checks
+    const totalPaid = allPaymentsResult.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+    const totalFeeAmount = Number(paymentDetails.total_fee_amount) || 0
+    const balance = Math.max(0, totalFeeAmount - totalPaid)
     const isFullyPaid = balance <= 0
 
-    // Prepare email data
+    // Prepare email data with proper null checks and defaults
     const emailData = {
       student: {
-        full_name: paymentDetails.full_name,
-        matric_number: paymentDetails.matric_number,
-        email: paymentDetails.email,
-        phone: paymentDetails.phone || "",
-        level: paymentDetails.level,
-        department_name: paymentDetails.department_name || "",
-        school_name: paymentDetails.school_name || "",
+        full_name: paymentDetails.full_name || "Unknown Student",
+        matric_number: paymentDetails.matric_number || "N/A",
+        email: paymentDetails.email || "",
+        phone: paymentDetails.phone || "N/A",
+        level: paymentDetails.level || "N/A",
+        department_name: paymentDetails.department_name || "N/A",
+        school_name: paymentDetails.school_name || "N/A",
+        passport_photo: paymentDetails.passport_photo || null,
       },
       payment: {
-        reference: paymentDetails.reference,
-        receipt_number: paymentDetails.receipt_number,
-        amount: Number(paymentDetails.amount),
-        payment_date: paymentDetails.payment_date,
+        reference: paymentDetails.reference || "",
+        receipt_number: paymentDetails.receipt_number || "",
+        amount: Number(paymentDetails.amount) || 0,
+        payment_date: paymentDetails.payment_date || new Date(),
         fee_type: paymentDetails.fee_type || "School Fee",
-        academic_session: paymentDetails.academic_session,
+        academic_session: paymentDetails.academic_session || "N/A",
         installment_number: paymentDetails.installment_number || 1,
         total_installments: paymentDetails.total_installments || 1,
+        payment_method: "paystack",
       },
       fee: {
-        fee_name: paymentDetails.fee_name,
+        fee_name: paymentDetails.fee_name || "School Fee",
         description: paymentDetails.fee_description || "",
-        total_amount: Number(paymentDetails.total_fee_amount),
+        total_amount: totalFeeAmount,
       },
       summary: {
         total_paid: totalPaid,
-        balance: Math.max(0, balance),
+        balance: balance,
         is_fully_paid: isFullyPaid,
       },
     }
@@ -129,7 +132,7 @@ export async function POST(request: NextRequest) {
       const emailHtml = generatePaymentReceiptEmail(emailData)
       const emailResult = await sendEmail({
         to: paymentDetails.email,
-        subject: `Payment Receipt - ${paymentDetails.fee_name} (${paymentDetails.receipt_number})`,
+        subject: `Payment Receipt - ${paymentDetails.fee_name || "School Fee"} (${paymentDetails.receipt_number || paymentDetails.reference})`,
         html: emailHtml,
       })
 
@@ -146,7 +149,7 @@ export async function POST(request: NextRequest) {
         id: payment.id,
         reference: payment.reference,
         receipt_number: payment.receipt_number,
-        amount: Number(payment.amount),
+        amount: Number(payment.amount) || 0,
         payment_date: payment.payment_date,
         fee_type: payment.fee_type,
         status: payment.status,
