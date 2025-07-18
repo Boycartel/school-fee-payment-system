@@ -1,48 +1,38 @@
 export function generatePaymentReceiptEmail(paymentData: {
-  studentName: string
-  matricNumber: string
-  email: string
-  phone?: string
-  level: string
-  department: string
-  school: string
-  feeName: string
-  feeType: string
-  amount: number
-  totalAmount: number
-  reference: string
-  receiptNumber: string
-  paymentDate: string
-  academicSession: string
-  installmentNumber?: number
-  totalInstallments?: number
-  totalPaid: number
-  balance: number
+  student: {
+    full_name: string
+    matric_number: string
+    email: string
+    phone?: string
+    level: string
+    department_name: string
+    school_name: string
+  }
+  payment: {
+    reference: string
+    receipt_number: string
+    amount: number
+    payment_date: string
+    fee_type: string
+    academic_session: string
+    installment_number?: number
+    total_installments?: number
+  }
+  fee: {
+    fee_name: string
+    description: string
+    total_amount: number
+  }
+  summary: {
+    total_paid: number
+    balance: number
+    is_fully_paid: boolean
+  }
 }) {
-  const {
-    studentName,
-    matricNumber,
-    email,
-    phone,
-    level,
-    department,
-    school,
-    feeName,
-    feeType,
-    amount,
-    totalAmount,
-    reference,
-    receiptNumber,
-    paymentDate,
-    academicSession,
-    installmentNumber,
-    totalInstallments,
-    totalPaid,
-    balance,
-  } = paymentData
+  const { student, payment, fee, summary } = paymentData
 
-  const isInstallment = installmentNumber && totalInstallments && totalInstallments > 1
-  const paymentStatus = balance > 0 ? "Partial Payment" : "Fully Paid"
+  const isInstallment = payment.installment_number && payment.total_installments && payment.total_installments > 1
+  const paymentStatus = summary.balance > 0 ? "Partial Payment" : "Fully Paid"
 
   return `
     <!DOCTYPE html>
@@ -50,7 +40,7 @@ export function generatePaymentReceiptEmail(paymentData: {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Payment Receipt - ${feeName}</title>
+      <title>Payment Receipt - ${fee.fee_name}</title>
       <style>
         body {
           font-family: Arial, sans-serif;
@@ -226,27 +216,27 @@ export function generatePaymentReceiptEmail(paymentData: {
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">Full Name</span>
-              <span class="info-value">${studentName}</span>
+              <span class="info-value">${student.full_name}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Matric Number</span>
-              <span class="info-value">${matricNumber}</span>
+              <span class="info-value">${student.matric_number}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Level</span>
-              <span class="info-value">${level}</span>
+              <span class="info-value">${student.level}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Department</span>
-              <span class="info-value">${department}</span>
+              <span class="info-value">${student.department_name}</span>
             </div>
             <div class="info-item">
               <span class="info-label">School</span>
-              <span class="info-value">${school}</span>
+              <span class="info-value">${student.school_name}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Email</span>
-              <span class="info-value">${email}</span>
+              <span class="info-value">${student.email}</span>
             </div>
           </div>
         </div>
@@ -256,28 +246,28 @@ export function generatePaymentReceiptEmail(paymentData: {
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">Receipt Number</span>
-              <span class="info-value">${receiptNumber}</span>
+              <span class="info-value">${payment.receipt_number}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Payment Reference</span>
-              <span class="info-value">${reference}</span>
+              <span class="info-value">${payment.reference}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Payment Date</span>
-              <span class="info-value">${new Date(paymentDate).toLocaleDateString("en-GB")}</span>
+              <span class="info-value">${new Date(payment.payment_date).toLocaleDateString("en-GB")}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Academic Session</span>
-              <span class="info-value">${academicSession}</span>
+              <span class="info-value">${payment.academic_session}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Fee Type</span>
-              <span class="info-value">${feeType}</span>
+              <span class="info-value">${payment.fee_type}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Payment Status</span>
               <span class="info-value">
-                <span class="status-badge ${balance > 0 ? "status-partial" : "status-verified"}">
+                <span class="status-badge ${summary.balance > 0 ? "status-partial" : "status-verified"}">
                   ${paymentStatus}
                 </span>
               </span>
@@ -290,22 +280,22 @@ export function generatePaymentReceiptEmail(paymentData: {
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">Fee Name</span>
-              <span class="info-value">${feeName}</span>
+              <span class="info-value">${fee.fee_name}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Total Fee Amount</span>
-              <span class="info-value amount">₦${totalAmount.toLocaleString()}</span>
+              <span class="info-value amount">₦${fee.total_amount.toLocaleString()}</span>
             </div>
             ${
               isInstallment
                 ? `
             <div class="info-item">
               <span class="info-label">Installment</span>
-              <span class="info-value">${installmentNumber} of ${totalInstallments}</span>
+              <span class="info-value">${payment.installment_number} of ${payment.total_installments}</span>
             </div>
             <div class="info-item">
               <span class="info-label">This Payment</span>
-              <span class="info-value amount">₦${amount.toLocaleString()}</span>
+              <span class="info-value amount">₦${payment.amount.toLocaleString()}</span>
             </div>
             `
                 : ""
@@ -316,25 +306,25 @@ export function generatePaymentReceiptEmail(paymentData: {
         <div class="payment-summary">
           <div class="summary-row">
             <span>Amount Paid (This Transaction):</span>
-            <span class="amount">₦${amount.toLocaleString()}</span>
+            <span class="amount">₦${payment.amount.toLocaleString()}</span>
           </div>
           <div class="summary-row">
             <span>Total Amount Paid:</span>
-            <span class="amount">₦${totalPaid.toLocaleString()}</span>
+            <span class="amount">₦${summary.total_paid.toLocaleString()}</span>
           </div>
           <div class="summary-row">
             <span>Outstanding Balance:</span>
-            <span class="amount">₦${balance.toLocaleString()}</span>
+            <span class="amount">₦${summary.balance.toLocaleString()}</span>
           </div>
           <div class="summary-row total">
             <span>Total Fee Amount:</span>
-            <span class="amount">₦${totalAmount.toLocaleString()}</span>
+            <span class="amount">₦${fee.total_amount.toLocaleString()}</span>
           </div>
         </div>
 
         <div class="verification-note">
           <strong>Payment Verification:</strong> This payment has been successfully verified and processed. 
-          You can verify this payment anytime by visiting our verification portal with your payment reference: <strong>${reference}</strong>
+          You can verify this payment anytime by visiting our verification portal with your payment reference: <strong>${payment.reference}</strong>
         </div>
 
         <div class="footer">

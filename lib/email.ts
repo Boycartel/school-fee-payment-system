@@ -1,23 +1,25 @@
 import nodemailer from "nodemailer"
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
+const transporter = nodemailer.createTransporter({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
   auth: {
-    user: "talk2boycartel@gmail.com",
-    pass: "dyjuroiowjvhmswa",
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASSWORD,
   },
 })
 
-export async function sendEmail(to: string, subject: string, html: string) {
+export async function sendEmail(options: { to: string; subject: string; html: string }) {
   try {
     const mailOptions = {
       from: {
         name: "The Federal Polytechnic Bida",
-        address: "talk2boycartel@gmail.com",
+        address: process.env.GMAIL_USER,
       },
-      to,
-      subject,
-      html,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
     }
 
     const result = await transporter.sendMail(mailOptions)
@@ -25,7 +27,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
     return { success: true, messageId: result.messageId }
   } catch (error) {
     console.error("Email sending failed:", error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
   }
 }
 
