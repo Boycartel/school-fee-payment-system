@@ -1,27 +1,29 @@
 import nodemailer from "nodemailer"
 
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
-  secure: true,
+  secure: true, // SSL
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_PASSWORD,
   },
 })
 
-interface EmailOptions {
+interface Attachment {
+  filename: string
+  content: Buffer
+  contentType: string
+}
+
+interface EmailParams {
   to: string
   subject: string
   html: string
-  attachments?: Array<{
-    filename: string
-    content: Buffer
-    contentType: string
-  }>
+  attachments?: Attachment[]
 }
 
-export async function sendEmail({ to, subject, html }: EmailOptions) {
+export async function sendEmail({ to, subject, html }: EmailParams) {
   try {
     const info = await transporter.sendMail({
       from: `"Federal Polytechnic Bida" <${process.env.GMAIL_USER}>`,
@@ -29,7 +31,6 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
       subject,
       html,
     })
-
     console.log("Email sent:", info.messageId)
     return { success: true, messageId: info.messageId }
   } catch (error) {
@@ -38,7 +39,7 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
   }
 }
 
-export async function sendEmailWithAttachment({ to, subject, html, attachments }: EmailOptions) {
+export async function sendEmailWithAttachment({ to, subject, html, attachments = [] }: EmailParams) {
   try {
     const info = await transporter.sendMail({
       from: `"Federal Polytechnic Bida" <${process.env.GMAIL_USER}>`,
@@ -47,12 +48,22 @@ export async function sendEmailWithAttachment({ to, subject, html, attachments }
       html,
       attachments,
     })
-
     console.log("Email with attachment sent:", info.messageId)
     return { success: true, messageId: info.messageId }
   } catch (error) {
-    console.error("Email sending failed:", error)
+    console.error("Email with attachment sending failed:", error)
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
+  }
+}
+
+export async function verifyEmailConnection() {
+  try {
+    await transporter.verify()
+    console.log("Email server connection verified")
+    return true
+  } catch (error) {
+    console.error("Email server connection failed:", error)
+    return false
   }
 }
 
