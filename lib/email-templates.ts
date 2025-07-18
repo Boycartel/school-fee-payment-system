@@ -1,84 +1,48 @@
-interface StudentInfo {
-  full_name: string
-  matric_number: string
+export function generatePaymentReceiptEmail(paymentData: {
+  studentName: string
+  matricNumber: string
   email: string
-  phone: string
+  phone?: string
   level: string
-  department_name: string
-  school_name: string
-  passport_photo?: string | null
-}
-
-interface PaymentInfo {
-  reference: string
-  receipt_number: string
+  department: string
+  school: string
+  feeName: string
+  feeType: string
   amount: number
-  payment_date: string | Date
-  fee_type: string
-  academic_session: string
-  installment_number: number
-  total_installments: number
-  payment_method?: string
-}
-
-interface FeeInfo {
-  fee_name: string
-  description: string
-  total_amount: number
-}
-
-interface PaymentSummary {
-  total_paid: number
+  totalAmount: number
+  reference: string
+  receiptNumber: string
+  paymentDate: string
+  academicSession: string
+  installmentNumber?: number
+  totalInstallments?: number
+  totalPaid: number
   balance: number
-  is_fully_paid: boolean
-}
+}) {
+  const {
+    studentName,
+    matricNumber,
+    email,
+    phone,
+    level,
+    department,
+    school,
+    feeName,
+    feeType,
+    amount,
+    totalAmount,
+    reference,
+    receiptNumber,
+    paymentDate,
+    academicSession,
+    installmentNumber,
+    totalInstallments,
+    totalPaid,
+    balance,
+  } = paymentData
 
-interface EmailData {
-  student: StudentInfo
-  payment: PaymentInfo
-  fee: FeeInfo
-  summary: PaymentSummary
-}
-
-export function generatePaymentReceiptEmail(data: EmailData): string {
-  // Ensure all numeric values are properly handled
-  const amount = Number(data.payment.amount) || 0
-  const totalAmount = Number(data.fee.total_amount) || 0
-  const totalPaid = Number(data.summary.total_paid) || 0
-  const balance = Number(data.summary.balance) || 0
-
-  // Format date properly
-  const paymentDate = new Date(data.payment.payment_date)
-  const formattedDate = paymentDate.toLocaleDateString("en-GB")
-
-  // Create simple text receipt
-  const receiptText = `
-RECEIPT OF PAYMENT
-
-This is to acknowledge receipt of the sum of ₦${amount.toLocaleString()} (Naira) from:
-
-Student Name: ${data.student.full_name}
-Matric No. / Reg No.: ${data.student.matric_number}
-Department: ${data.student.department_name}
-Level: ${data.student.level}
-Session: ${data.payment.academic_session}
-Purpose of Payment: ${data.fee.fee_name}
-Payment Reference: ${data.payment.reference}
-Date of Payment: ${formattedDate}
-Payment Method: ${data.payment.payment_method || "Paystack"}
-
-Payment Summary:
-- Amount Paid: ₦${amount.toLocaleString()}
-- Total Fee: ₦${totalAmount.toLocaleString()}
-- Balance: ${balance > 0 ? `₦${balance.toLocaleString()}` : "FULLY PAID"}
-
-This payment has been verified and confirmed.
-
----
-The Federal Polytechnic Bida
-Automated Fee Confirmation System
-Generated on ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleTimeString("en-GB")}
-  `
+  const isInstallment = installmentNumber && totalInstallments && totalInstallments > 1
+  const paymentStatus = balance > 0 ? "Partial Payment" : "Fully Paid"
 
   return `
     <!DOCTYPE html>
@@ -86,7 +50,7 @@ Generated on ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleT
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Payment Receipt</title>
+      <title>Payment Receipt - ${feeName}</title>
       <style>
         body {
           font-family: Arial, sans-serif;
@@ -109,6 +73,11 @@ Generated on ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleT
           padding-bottom: 20px;
           margin-bottom: 30px;
         }
+        .logo {
+          width: 80px;
+          height: 80px;
+          margin: 0 auto 15px;
+        }
         .title {
           color: #0e1c36;
           font-size: 24px;
@@ -120,15 +89,89 @@ Generated on ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleT
           font-size: 16px;
           margin: 5px 0 0 0;
         }
-        .receipt-content {
+        .receipt-title {
           background-color: #f8f9fa;
-          border: 1px solid #dee2e6;
+          border: 2px solid #dee2e6;
+          border-radius: 8px;
+          padding: 15px;
+          text-align: center;
+          margin-bottom: 30px;
+        }
+        .receipt-title h2 {
+          color: #000;
+          font-weight: bold;
+          font-size: 20px;
+          margin: 0;
+        }
+        .info-section {
+          margin-bottom: 25px;
+        }
+        .info-title {
+          color: #0e1c36;
+          font-size: 18px;
+          font-weight: bold;
+          margin-bottom: 15px;
+          border-bottom: 2px solid #4a90e2;
+          padding-bottom: 5px;
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
+        }
+        .info-item {
+          display: flex;
+          flex-direction: column;
+        }
+        .info-label {
+          font-weight: bold;
+          color: #666;
+          font-size: 12px;
+          text-transform: uppercase;
+          margin-bottom: 3px;
+        }
+        .info-value {
+          color: #333;
+          font-size: 14px;
+        }
+        .payment-summary {
+          background-color: #f8f9fa;
           border-radius: 8px;
           padding: 20px;
-          margin: 20px 0;
-          font-family: monospace;
-          white-space: pre-line;
-          line-height: 1.5;
+          margin: 25px 0;
+        }
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 10px;
+          padding: 5px 0;
+        }
+        .summary-row.total {
+          border-top: 2px solid #0e1c36;
+          padding-top: 15px;
+          margin-top: 15px;
+          font-weight: bold;
+          font-size: 16px;
+        }
+        .amount {
+          color: #0e1c36;
+          font-weight: bold;
+        }
+        .status-badge {
+          display: inline-block;
+          padding: 5px 15px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: bold;
+          text-transform: uppercase;
+        }
+        .status-verified {
+          background-color: #d4edda;
+          color: #155724;
+        }
+        .status-partial {
+          background-color: #fff3cd;
+          color: #856404;
         }
         .footer {
           text-align: center;
@@ -138,21 +181,168 @@ Generated on ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleT
           color: #666;
           font-size: 12px;
         }
+        .verification-note {
+          background-color: #e7f3ff;
+          border-left: 4px solid #4a90e2;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 0 5px 5px 0;
+        }
+        @media (max-width: 600px) {
+          .info-grid {
+            grid-template-columns: 1fr;
+          }
+          .summary-row {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+        }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
+          <div class="logo">
+            <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="45" fill="#0e1c36"/>
+              <circle cx="50" cy="50" r="35" fill="#4a90e2"/>
+              <rect x="40" y="35" width="20" height="15" fill="white" rx="2"/>
+              <rect x="42" y="37" width="16" height="2" fill="#0e1c36"/>
+              <rect x="42" y="40" width="16" height="2" fill="#0e1c36"/>
+              <rect x="42" y="43" width="16" height="2" fill="#0e1c36"/>
+              <rect x="45" y="55" width="10" height="15" fill="white"/>
+            </svg>
+          </div>
           <h1 class="title">The Federal Polytechnic Bida</h1>
           <p class="subtitle">Fee Confirmation System</p>
         </div>
-        
-        <div class="receipt-content">${receiptText}</div>
-        
+
+        <div class="receipt-title">
+          <h2>PAYMENT RECEIPT</h2>
+        </div>
+
+        <div class="info-section">
+          <div class="info-title">Student Information</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Full Name</span>
+              <span class="info-value">${studentName}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Matric Number</span>
+              <span class="info-value">${matricNumber}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Level</span>
+              <span class="info-value">${level}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Department</span>
+              <span class="info-value">${department}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">School</span>
+              <span class="info-value">${school}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Email</span>
+              <span class="info-value">${email}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-title">Payment Details</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Receipt Number</span>
+              <span class="info-value">${receiptNumber}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Payment Reference</span>
+              <span class="info-value">${reference}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Payment Date</span>
+              <span class="info-value">${new Date(paymentDate).toLocaleDateString("en-GB")}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Academic Session</span>
+              <span class="info-value">${academicSession}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Fee Type</span>
+              <span class="info-value">${feeType}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Payment Status</span>
+              <span class="info-value">
+                <span class="status-badge ${balance > 0 ? "status-partial" : "status-verified"}">
+                  ${paymentStatus}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-title">Fee Information</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Fee Name</span>
+              <span class="info-value">${feeName}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Total Fee Amount</span>
+              <span class="info-value amount">₦${totalAmount.toLocaleString()}</span>
+            </div>
+            ${
+              isInstallment
+                ? `
+            <div class="info-item">
+              <span class="info-label">Installment</span>
+              <span class="info-value">${installmentNumber} of ${totalInstallments}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">This Payment</span>
+              <span class="info-value amount">₦${amount.toLocaleString()}</span>
+            </div>
+            `
+                : ""
+            }
+          </div>
+        </div>
+
+        <div class="payment-summary">
+          <div class="summary-row">
+            <span>Amount Paid (This Transaction):</span>
+            <span class="amount">₦${amount.toLocaleString()}</span>
+          </div>
+          <div class="summary-row">
+            <span>Total Amount Paid:</span>
+            <span class="amount">₦${totalPaid.toLocaleString()}</span>
+          </div>
+          <div class="summary-row">
+            <span>Outstanding Balance:</span>
+            <span class="amount">₦${balance.toLocaleString()}</span>
+          </div>
+          <div class="summary-row total">
+            <span>Total Fee Amount:</span>
+            <span class="amount">₦${totalAmount.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div class="verification-note">
+          <strong>Payment Verification:</strong> This payment has been successfully verified and processed. 
+          You can verify this payment anytime by visiting our verification portal with your payment reference: <strong>${reference}</strong>
+        </div>
+
         <div class="footer">
           <p><strong>The Federal Polytechnic Bida</strong></p>
+          <p>Automated Fee Confirmation System</p>
           <p>This is an automated email. Please do not reply to this message.</p>
           <p>For support, contact the Bursary Department.</p>
+          <p>© ${new Date().getFullYear()} The Federal Polytechnic Bida. All rights reserved.</p>
         </div>
       </div>
     </body>

@@ -52,7 +52,6 @@
     "next": "14.2.16",
     "next-themes": "latest",
     "nodemailer": "latest",
-    "puppeteer": "latest",
     "qrcode": "latest",
     "react": "^18",
     "react-day-picker": "latest",
@@ -68,7 +67,6 @@
   },
   "devDependencies": {
     "@types/node": "^22",
-    "@types/nodemailer": "latest",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "postcss": "^8.5",
