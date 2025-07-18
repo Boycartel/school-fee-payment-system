@@ -248,7 +248,7 @@ export default function Home() {
 
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
             <p>© {new Date().getFullYear()} The Federal Polytechnic Bida. All rights reserved.</p>
-            <p className="text-sm mt-2">Powered by Technology for Development</p>
+            <p className="text-sm mt-2">Developed by Soundmind Digitals</p>
           </div>
         </div>
       </footer>

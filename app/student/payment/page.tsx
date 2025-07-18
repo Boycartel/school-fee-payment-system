@@ -430,7 +430,7 @@ export default function StudentPayment() {
 
       <footer className="bg-fpb-blue-light border-t border-gray-700 py-6">
         <div className="container mx-auto px-4 text-center text-gray-300">
-          <p>© {new Date().getFullYear()} The Federal Polytechnic Bida. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} The Federal Polytechnic Bida. All rights reserved. Developed by Soundmind Digitals</p>
         </div>
       </footer>
     </div>
