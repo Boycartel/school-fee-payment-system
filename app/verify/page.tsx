@@ -1,61 +1,79 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import Link from "next/link"
-import Image from "next/image"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { QRCodeScanner } from "@/components/qr-code-scanner"
+import { Search, CheckCircle, XCircle, Clock, User, Receipt, Calendar } from "lucide-react"
 
-interface VerificationResult {
-  full_name: string
-  matric_number: string
-  email: string
-  phone?: string
-  department_name?: string
-  school_name?: string
-  amount: number
-  payment_date: string
+interface PaymentData {
+  id: string
   reference: string
   receipt_number: string
+  amount: number
+  payment_date: string
   status: string
+  fee_type: string
   academic_session: string
-  fee_name?: string
-  fee_description?: string
-  passport_photo?: string
+  installment_number?: number
+  total_installments?: number
+  student: {
+    full_name: string
+    matric_number: string
+    email: string
+    phone: string
+    level: string
+    department_name: string
+    school_name: string
+    passport_photo?: string
+  }
+  fee: {
+    fee_name: string
+    total_amount: number
+  }
+  summary: {
+    total_paid: number
+    balance: number
+    is_fully_paid: boolean
+    payment_count: number
+  }
 }
 
 export default function VerifyPayment() {
   const searchParams = useSearchParams()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchType, setSearchType] = useState("reference")
-  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null)
-  const [isSearching, setIsSearching] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [payments, setPayments] = useState<PaymentData[]>([])
+  const [summary, setSummary] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showScanner, setShowScanner] = useState(false)
 
-  // Auto-search if URL parameters are present
+  // Check for URL parameters on component mount
   useEffect(() => {
     const reference = searchParams.get("reference")
     const auto = searchParams.get("auto")
 
     if (reference && auto === "true") {
-      setSearchQuery(reference)
-      setSearchType("reference")
-      // Trigger automatic search
-      handleAutoSearch(reference)
+      setSearchTerm(reference)
+      handleSearch(reference)
     }
   }, [searchParams])
 
-  const handleAutoSearch = async (reference: string) => {
-    setIsSearching(true)
+  const handleSearch = async (term?: string) => {
+    const searchValue = term || searchTerm
+    if (!searchValue.trim()) {
+      setError("Please enter a matric number, email, or payment reference")
+      return
+    }
+
+    setLoading(true)
     setError("")
-    setVerificationResult(null)
+    setPayments([])
+    setSummary(null)
 
     try {
       const response = await fetch("/api/verify/payment", {
@@ -63,238 +81,268 @@ export default function VerifyPayment() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          searchType: "reference",
-          searchQuery: reference,
-        }),
+        body: JSON.stringify({ searchTerm: searchValue }),
       })
 
       const data = await response.json()
 
-      if (response.ok) {
-        setVerificationResult(data.payment)
+      if (response.ok && data.success) {
+        setPayments(data.payments || [])
+        setSummary(data.summary || null)
+        if (data.payments.length === 0) {
+          setError("No payments found for the provided information")
+        }
       } else {
-        setError(data.error || "Verification failed")
+        setError(data.error || "Failed to verify payment")
       }
     } catch (error) {
-      setError("Network error. Please try again.")
+      console.error("Verification error:", error)
+      setError("Failed to verify payment. Please try again.")
     } finally {
-      setIsSearching(false)
+      setLoading(false)
     }
   }
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSearching(true)
-    setError("")
-    setVerificationResult(null)
-
+  const handleQRScan = (data: string) => {
     try {
-      const response = await fetch("/api/verify/payment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          searchType,
-          searchQuery,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setVerificationResult(data.payment)
-      } else {
-        setError(data.error || "Verification failed")
+      // Check if it's a URL with reference parameter
+      const url = new URL(data)
+      const reference = url.searchParams.get("reference")
+      if (reference) {
+        setSearchTerm(reference)
+        handleSearch(reference)
+        setShowScanner(false)
+        return
       }
-    } catch (error) {
-      setError("Network error. Please try again.")
-    } finally {
-      setIsSearching(false)
+    } catch {
+      // If not a URL, treat as direct reference
+      setSearchTerm(data)
+      handleSearch(data)
     }
+    setShowScanner(false)
   }
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
       case "verified":
-        return "bg-green-500"
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Verified
+          </Badge>
+        )
       case "pending":
-        return "bg-yellow-500"
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </Badge>
+        )
       case "failed":
-        return "bg-red-500"
+        return (
+          <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+            <XCircle className="w-3 h-3 mr-1" />
+            Failed
+          </Badge>
+        )
       default:
-        return "bg-gray-500"
+        return <Badge variant="secondary">{status}</Badge>
     }
+  }
+
+  const formatPaymentType = (payment: PaymentData) => {
+    if (payment.installment_number && payment.total_installments && payment.total_installments > 1) {
+      return `${payment.fee_type} (${payment.installment_number}/${payment.total_installments})`
+    }
+    return payment.fee_type || "School Fee"
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-fpb-blue text-white">
-      <header className="bg-fpb-blue-light border-b border-gray-700">
-        <div className="container mx-auto px-4 py-4">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/images/logo.png"
-              alt="The Federal Polytechnic Bida Logo"
-              width={60}
-              height={60}
-              className="h-12 w-auto"
-            />
-            <h1 className="text-xl font-bold text-white hidden sm:block">The Federal Polytechnic Bida</h1>
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 py-8">
+      <div className="container mx-auto px-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">Payment Verification</h1>
+            <p className="text-gray-300">
+              Verify student payment status using matric number, email, or payment reference
+            </p>
+          </div>
 
-      <main className="flex-1 container mx-auto px-4 py-12">
-        <div className="max-w-3xl mx-auto">
-          <Card className="bg-fpb-blue-light border-gray-700 text-white mb-8">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Payment Verification Portal</CardTitle>
-              <CardDescription className="text-gray-300">
-                Verify payment status using Payment Reference, Matric Number, or Email
+          {/* Search Form */}
+          <Card className="bg-slate-800/50 border-slate-700 mb-8">
+            <CardHeader>
+              <CardTitle className="text-white">Search Payment</CardTitle>
+              <CardDescription className="text-gray-400">
+                Enter matric number, email address, or payment reference to verify payment
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSearch} className="space-y-4">
-                {error && (
-                  <Alert className="bg-red-900 border-red-700">
-                    <AlertDescription className="text-red-200">{error}</AlertDescription>
-                  </Alert>
-                )}
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="search" className="text-gray-300">
+                  Matric Number / Email / Payment Reference
+                </Label>
+                <Input
+                  id="search"
+                  type="text"
+                  placeholder="e.g., FPB/2023/001, student@example.com, or payment reference"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400"
+                  onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="searchType" className="text-white">
-                    Verify By
-                  </Label>
-                  <select
-                    id="searchType"
-                    className="w-full p-2 border rounded-md bg-gray-800 border-gray-700 text-white"
-                    value={searchType}
-                    onChange={(e) => setSearchType(e.target.value)}
-                  >
-                    <option value="reference">Payment Reference</option>
-                    <option value="matricNumber">Matric Number</option>
-                    <option value="email">Email Address</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="search" className="text-white">
-                    {searchType === "matricNumber"
-                      ? "Matric Number"
-                      : searchType === "email"
-                        ? "Email Address"
-                        : "Payment Reference"}
-                  </Label>
-                  <Input
-                    id="search"
-                    placeholder={
-                      searchType === "matricNumber"
-                        ? "e.g. 2023/1/123456CS"
-                        : searchType === "email"
-                          ? "e.g. student@fpb.edu.ng"
-                          : "e.g. REF123456789"
-                    }
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-gray-800 border-gray-700 text-white"
-                    required
-                  />
-                </div>
-
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isSearching}>
-                  {isSearching ? "Verifying..." : "Verify Payment"}
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => handleSearch()}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 flex-1"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  {loading ? "Searching..." : "Search"}
                 </Button>
-              </form>
+                <Button
+                  onClick={() => setShowScanner(!showScanner)}
+                  variant="outline"
+                  className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                >
+                  Scan QR
+                </Button>
+              </div>
+
+              {showScanner && (
+                <div className="mt-4">
+                  <QRCodeScanner onScan={handleQRScan} onError={(err) => setError(err)} />
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-red-900/50 border border-red-700 rounded-lg p-4">
+                  <p className="text-red-300 text-sm">{error}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {verificationResult && (
-            <Card className="bg-fpb-blue-light border-gray-700 text-white">
+          {/* Summary Card */}
+          {summary && (
+            <Card className="bg-slate-800/50 border-slate-700 mb-6">
               <CardHeader>
-                <CardTitle>Verification Result</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Payment information for {verificationResult.full_name}
-                </CardDescription>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Student Summary
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      {verificationResult.passport_photo && (
-                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700">
-                          <img
-                            src={verificationResult.passport_photo || "/placeholder.svg"}
-                            alt="Student Passport"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="font-bold text-lg">{verificationResult.full_name}</h4>
-                        <p className="text-gray-300">{verificationResult.matric_number}</p>
-                        <p className="text-gray-300 text-sm">{verificationResult.email}</p>
-                      </div>
-                    </div>
-                    <Badge className={getStatusBadgeColor(verificationResult.status)}>
-                      {verificationResult.status}
-                    </Badge>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-400">₦{summary.total_paid?.toLocaleString() || 0}</p>
+                    <p className="text-gray-400 text-sm">Total Paid</p>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-gray-400">Department</p>
-                      <p>{verificationResult.department_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">School</p>
-                      <p>{verificationResult.school_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">Session</p>
-                      <p>{verificationResult.academic_session}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">Fee</p>
-                      <p>{verificationResult.fee_name}</p>
-                    </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-blue-400">{summary.payment_count || 0}</p>
+                    <p className="text-gray-400 text-sm">Total Payments</p>
                   </div>
-
-                  <div className="border-t border-gray-700 pt-4">
-                    <h4 className="font-semibold mb-3">Payment Details</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-gray-400">Amount Paid</p>
-                        <p className="font-semibold text-green-400">
-                          ₦{Number(verificationResult.amount).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400">Payment Date</p>
-                        <p>{new Date(verificationResult.payment_date).toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400">Reference</p>
-                        <p className="font-mono">{verificationResult.reference}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400">Receipt Number</p>
-                        <p>{verificationResult.receipt_number}</p>
-                      </div>
-                    </div>
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-white">{summary.student?.full_name || "N/A"}</p>
+                    <p className="text-gray-400 text-sm">{summary.student?.matric_number || "N/A"}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
-        </div>
-      </main>
 
-      <footer className="bg-fpb-blue-light border-t border-gray-700 py-6">
-        <div className="container mx-auto px-4 text-center text-gray-300">
-          <p>© {new Date().getFullYear()} The Federal Polytechnic Bida. All rights reserved.</p>
+          {/* Payment Results */}
+          {payments.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-white mb-4">Payment Records ({payments.length})</h2>
+
+              {payments.map((payment) => (
+                <Card key={payment.id} className="bg-slate-800/50 border-slate-700">
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Student Info */}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-3">
+                          <User className="w-4 h-4 text-blue-400" />
+                          <h3 className="font-semibold text-white">Student Information</h3>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <p className="text-gray-300">
+                            <span className="font-medium">Name:</span> {payment.student.full_name}
+                          </p>
+                          <p className="text-gray-300">
+                            <span className="font-medium">Matric:</span> {payment.student.matric_number}
+                          </p>
+                          <p className="text-gray-300">
+                            <span className="font-medium">Level:</span> {payment.student.level}
+                          </p>
+                          <p className="text-gray-300">
+                            <span className="font-medium">Department:</span> {payment.student.department_name}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Payment Info */}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Receipt className="w-4 h-4 text-green-400" />
+                          <h3 className="font-semibold text-white">Payment Details</h3>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <p className="text-gray-300">
+                            <span className="font-medium">Fee Type:</span> {formatPaymentType(payment)}
+                          </p>
+                          <p className="text-gray-300">
+                            <span className="font-medium">Amount:</span>{" "}
+                            <span className="text-green-400 font-semibold">₦{payment.amount.toLocaleString()}</span>
+                          </p>
+                          <p className="text-gray-300">
+                            <span className="font-medium">Reference:</span>{" "}
+                            <code className="bg-slate-700 px-2 py-1 rounded text-xs">{payment.reference}</code>
+                          </p>
+                          <p className="text-gray-300">
+                            <span className="font-medium">Receipt:</span> {payment.receipt_number}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Status & Date */}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Calendar className="w-4 h-4 text-yellow-400" />
+                          <h3 className="font-semibold text-white">Status & Date</h3>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-gray-400 text-xs mb-1">Payment Status</p>
+                            {getStatusBadge(payment.status)}
+                          </div>
+                          <div>
+                            <p className="text-gray-400 text-xs mb-1">Payment Date</p>
+                            <p className="text-gray-300 text-sm">
+                              {new Date(payment.payment_date).toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "long",
+                                year: "numeric",
+                              })}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-400 text-xs mb-1">Academic Session</p>
+                            <p className="text-gray-300 text-sm">{payment.academic_session}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
-      </footer>
+      </div>
     </div>
   )
 }

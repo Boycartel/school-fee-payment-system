@@ -6,41 +6,38 @@ import QRCode from "qrcode"
 interface QRCodeGeneratorProps {
   data: string
   size?: number
-  paymentReference?: string
+  className?: string
 }
 
-export function QRCodeGenerator({ data, size = 200, paymentReference }: QRCodeGeneratorProps) {
+export function QRCodeGenerator({ data, size = 200, className = "" }: QRCodeGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    if (canvasRef.current) {
-      // If paymentReference is provided, create a verification URL
-      const qrData = paymentReference
-        ? `${window.location.origin}/verify?reference=${paymentReference}&auto=true`
-        : data
-
+    if (canvasRef.current && data) {
       QRCode.toCanvas(
         canvasRef.current,
-        qrData,
+        data,
         {
           width: size,
           margin: 2,
           color: {
             dark: "#000000",
-            light: "#ffffff",
+            light: "#FFFFFF",
           },
         },
         (error) => {
-          if (error) console.error("Error generating QR code:", error)
+          if (error) {
+            console.error("QR Code generation error:", error)
+          }
         },
       )
     }
-  }, [data, size, paymentReference])
+  }, [data, size])
 
   return (
-    <div className="flex flex-col items-center">
-      <canvas ref={canvasRef} />
-      {paymentReference && <p className="text-xs text-gray-500 mt-2 text-center">Scan to verify payment</p>}
+    <div className={`inline-block ${className}`}>
+      <canvas ref={canvasRef} className="border border-gray-300 rounded" />
+      <p className="text-xs text-gray-500 text-center mt-2">Scan to verify payment</p>
     </div>
   )
 }
