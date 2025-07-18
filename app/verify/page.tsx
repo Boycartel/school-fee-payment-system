@@ -10,70 +10,50 @@ import { Badge } from "@/components/ui/badge"
 import { QRCodeScanner } from "@/components/qr-code-scanner"
 import { Search, CheckCircle, XCircle, Clock, User, Receipt, Calendar } from "lucide-react"
 
-interface PaymentData {
-  id: string
-  reference: string
-  receipt_number: string
+interface VerificationResult {
+  full_name: string
+  matric_number: string
+  email: string
+  phone?: string
+  department_name?: string
+  school_name?: string
   amount: number
   payment_date: string
+  reference: string
+  receipt_number: string
   status: string
-  fee_type: string
   academic_session: string
-  installment_number?: number
-  total_installments?: number
-  student: {
-    full_name: string
-    matric_number: string
-    email: string
-    phone: string
-    level: string
-    department_name: string
-    school_name: string
-    passport_photo?: string
-  }
-  fee: {
-    fee_name: string
-    total_amount: number
-  }
-  summary: {
-    total_paid: number
-    balance: number
-    is_fully_paid: boolean
-    payment_count: number
-  }
+  fee_name?: string
+  fee_description?: string
+  passport_photo?: string
 }
 
 export default function VerifyPayment() {
   const searchParams = useSearchParams()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [payments, setPayments] = useState<PaymentData[]>([])
-  const [summary, setSummary] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchType, setSearchType] = useState("reference")
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState("")
   const [showScanner, setShowScanner] = useState(false)
 
-  // Check for URL parameters on component mount
+  // Auto-search if URL parameters are present
   useEffect(() => {
     const reference = searchParams.get("reference")
     const auto = searchParams.get("auto")
 
     if (reference && auto === "true") {
-      setSearchTerm(reference)
-      handleSearch(reference)
+      setSearchQuery(reference)
+      setSearchType("reference")
+      // Trigger automatic search
+      handleAutoSearch(reference)
     }
   }, [searchParams])
 
-  const handleSearch = async (term?: string) => {
-    const searchValue = term || searchTerm
-    if (!searchValue.trim()) {
-      setError("Please enter a matric number, email, or payment reference")
-      return
-    }
-
-    setLoading(true)
+  const handleAutoSearch = async (reference: string) => {
+    setIsSearching(true)
     setError("")
-    setPayments([])
-    setSummary(null)
+    setVerificationResult(null)
 
     try {
       const response = await fetch("/api/verify/payment", {
@@ -81,25 +61,61 @@ export default function VerifyPayment() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ searchTerm: searchValue }),
+        body: JSON.stringify({
+          searchType: "reference",
+          searchQuery: reference,
+        }),
       })
 
       const data = await response.json()
 
       if (response.ok && data.success) {
-        setPayments(data.payments || [])
-        setSummary(data.summary || null)
-        if (data.payments.length === 0) {
-          setError("No payments found for the provided information")
-        }
+        setVerificationResult(data.payment)
       } else {
-        setError(data.error || "Failed to verify payment")
+        setError(data.error || "Verification failed")
+      }
+    } catch (error) {
+      setError("Network error. Please try again.")
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleSearch = async (term?: string) => {
+    const searchValue = term || searchQuery
+    if (!searchValue.trim()) {
+      setError("Please enter a matric number, email, or payment reference")
+      return
+    }
+
+    setIsSearching(true)
+    setError("")
+    setVerificationResult(null)
+
+    try {
+      const response = await fetch("/api/verify/payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          searchType: "reference",
+          searchQuery: searchValue,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setVerificationResult(data.payment)
+      } else {
+        setError(data.error || "Verification failed")
       }
     } catch (error) {
       console.error("Verification error:", error)
       setError("Failed to verify payment. Please try again.")
     } finally {
-      setLoading(false)
+      setIsSearching(false)
     }
   }
 
@@ -109,14 +125,14 @@ export default function VerifyPayment() {
       const url = new URL(data)
       const reference = url.searchParams.get("reference")
       if (reference) {
-        setSearchTerm(reference)
+        setSearchQuery(reference)
         handleSearch(reference)
         setShowScanner(false)
         return
       }
     } catch {
       // If not a URL, treat as direct reference
-      setSearchTerm(data)
+      setSearchQuery(data)
       handleSearch(data)
     }
     setShowScanner(false)
@@ -150,7 +166,7 @@ export default function VerifyPayment() {
     }
   }
 
-  const formatPaymentType = (payment: PaymentData) => {
+  const formatPaymentType = (payment: any) => {
     if (payment.installment_number && payment.total_installments && payment.total_installments > 1) {
       return `${payment.fee_type} (${payment.installment_number}/${payment.total_installments})`
     }
@@ -186,8 +202,8 @@ export default function VerifyPayment() {
                   id="search"
                   type="text"
                   placeholder="e.g., FPB/2023/001, student@example.com, or payment reference"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400"
                   onKeyPress={(e) => e.key === "Enter" && handleSearch()}
                 />
@@ -196,11 +212,11 @@ export default function VerifyPayment() {
               <div className="flex gap-3">
                 <Button
                   onClick={() => handleSearch()}
-                  disabled={loading}
+                  disabled={isSearching}
                   className="bg-blue-600 hover:bg-blue-700 flex-1"
                 >
                   <Search className="w-4 h-4 mr-2" />
-                  {loading ? "Searching..." : "Search"}
+                  {isSearching ? "Searching..." : "Search"}
                 </Button>
                 <Button
                   onClick={() => setShowScanner(!showScanner)}
@@ -226,7 +242,7 @@ export default function VerifyPayment() {
           </Card>
 
           {/* Summary Card */}
-          {summary && (
+          {verificationResult && (
             <Card className="bg-slate-800/50 border-slate-700 mb-6">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -237,16 +253,18 @@ export default function VerifyPayment() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-green-400">₦{summary.total_paid?.toLocaleString() || 0}</p>
-                    <p className="text-gray-400 text-sm">Total Paid</p>
+                    <p className="text-2xl font-bold text-green-400">
+                      ₦{verificationResult.amount?.toLocaleString() || 0}
+                    </p>
+                    <p className="text-gray-400 text-sm">Amount Paid</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-400">{summary.payment_count || 0}</p>
-                    <p className="text-gray-400 text-sm">Total Payments</p>
+                    <p className="text-2xl font-bold text-blue-400">{verificationResult.reference || "N/A"}</p>
+                    <p className="text-gray-400 text-sm">Reference Number</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-semibold text-white">{summary.student?.full_name || "N/A"}</p>
-                    <p className="text-gray-400 text-sm">{summary.student?.matric_number || "N/A"}</p>
+                    <p className="text-lg font-semibold text-white">{verificationResult.full_name || "N/A"}</p>
+                    <p className="text-gray-400 text-sm">{verificationResult.matric_number || "N/A"}</p>
                   </div>
                 </div>
               </CardContent>
@@ -254,91 +272,91 @@ export default function VerifyPayment() {
           )}
 
           {/* Payment Results */}
-          {payments.length > 0 && (
+          {verificationResult && (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-white mb-4">Payment Records ({payments.length})</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">Payment Records</h2>
 
-              {payments.map((payment) => (
-                <Card key={payment.id} className="bg-slate-800/50 border-slate-700">
-                  <CardContent className="p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      {/* Student Info */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 mb-3">
-                          <User className="w-4 h-4 text-blue-400" />
-                          <h3 className="font-semibold text-white">Student Information</h3>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <p className="text-gray-300">
-                            <span className="font-medium">Name:</span> {payment.student.full_name}
-                          </p>
-                          <p className="text-gray-300">
-                            <span className="font-medium">Matric:</span> {payment.student.matric_number}
-                          </p>
-                          <p className="text-gray-300">
-                            <span className="font-medium">Level:</span> {payment.student.level}
-                          </p>
-                          <p className="text-gray-300">
-                            <span className="font-medium">Department:</span> {payment.student.department_name}
-                          </p>
-                        </div>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Student Info */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <User className="w-4 h-4 text-blue-400" />
+                        <h3 className="font-semibold text-white">Student Information</h3>
                       </div>
-
-                      {/* Payment Info */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Receipt className="w-4 h-4 text-green-400" />
-                          <h3 className="font-semibold text-white">Payment Details</h3>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <p className="text-gray-300">
-                            <span className="font-medium">Fee Type:</span> {formatPaymentType(payment)}
-                          </p>
-                          <p className="text-gray-300">
-                            <span className="font-medium">Amount:</span>{" "}
-                            <span className="text-green-400 font-semibold">₦{payment.amount.toLocaleString()}</span>
-                          </p>
-                          <p className="text-gray-300">
-                            <span className="font-medium">Reference:</span>{" "}
-                            <code className="bg-slate-700 px-2 py-1 rounded text-xs">{payment.reference}</code>
-                          </p>
-                          <p className="text-gray-300">
-                            <span className="font-medium">Receipt:</span> {payment.receipt_number}
-                          </p>
-                        </div>
+                      <div className="space-y-2 text-sm">
+                        <p className="text-gray-300">
+                          <span className="font-medium">Name:</span> {verificationResult.full_name}
+                        </p>
+                        <p className="text-gray-300">
+                          <span className="font-medium">Matric:</span> {verificationResult.matric_number}
+                        </p>
+                        <p className="text-gray-300">
+                          <span className="font-medium">Level:</span> {verificationResult.level}
+                        </p>
+                        <p className="text-gray-300">
+                          <span className="font-medium">Department:</span> {verificationResult.department_name}
+                        </p>
                       </div>
+                    </div>
 
-                      {/* Status & Date */}
+                    {/* Payment Info */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Receipt className="w-4 h-4 text-green-400" />
+                        <h3 className="font-semibold text-white">Payment Details</h3>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <p className="text-gray-300">
+                          <span className="font-medium">Fee Type:</span> {verificationResult.fee_name}
+                        </p>
+                        <p className="text-gray-300">
+                          <span className="font-medium">Amount:</span>{" "}
+                          <span className="text-green-400 font-semibold">
+                            ₦{verificationResult.amount.toLocaleString()}
+                          </span>
+                        </p>
+                        <p className="text-gray-300">
+                          <span className="font-medium">Reference:</span>{" "}
+                          <code className="bg-slate-700 px-2 py-1 rounded text-xs">{verificationResult.reference}</code>
+                        </p>
+                        <p className="text-gray-300">
+                          <span className="font-medium">Receipt:</span> {verificationResult.receipt_number}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Status & Date */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Calendar className="w-4 h-4 text-yellow-400" />
+                        <h3 className="font-semibold text-white">Status & Date</h3>
+                      </div>
                       <div className="space-y-3">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Calendar className="w-4 h-4 text-yellow-400" />
-                          <h3 className="font-semibold text-white">Status & Date</h3>
+                        <div>
+                          <p className="text-gray-400 text-xs mb-1">Payment Status</p>
+                          {getStatusBadge(verificationResult.status)}
                         </div>
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-gray-400 text-xs mb-1">Payment Status</p>
-                            {getStatusBadge(payment.status)}
-                          </div>
-                          <div>
-                            <p className="text-gray-400 text-xs mb-1">Payment Date</p>
-                            <p className="text-gray-300 text-sm">
-                              {new Date(payment.payment_date).toLocaleDateString("en-GB", {
-                                day: "2-digit",
-                                month: "long",
-                                year: "numeric",
-                              })}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400 text-xs mb-1">Academic Session</p>
-                            <p className="text-gray-300 text-sm">{payment.academic_session}</p>
-                          </div>
+                        <div>
+                          <p className="text-gray-400 text-xs mb-1">Payment Date</p>
+                          <p className="text-gray-300 text-sm">
+                            {new Date(verificationResult.payment_date).toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-xs mb-1">Academic Session</p>
+                          <p className="text-gray-300 text-sm">{verificationResult.academic_session}</p>
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>

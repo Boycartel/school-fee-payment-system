@@ -37,7 +37,6 @@ export function QRCodeGenerator({ data, size = 200, className = "" }: QRCodeGene
   return (
     <div className={`inline-block ${className}`}>
       <canvas ref={canvasRef} className="border border-gray-300 rounded" />
-      <p className="text-xs text-gray-500 text-center mt-2">Scan to verify payment</p>
     </div>
   )
 }
