@@ -414,11 +414,7 @@ export default function StudentDashboard() {
                 </p>
                 <p className="text-gray-300">
                   <span className="font-medium">Status:</span>
-                  <Badge
-                    className={`ml-2 ${student.is_activated ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                  >
-                    {student.is_activated ? "Active" : "Inactive"}
-                  </Badge>
+                  <Badge className="ml-2 bg-green-100 text-green-800">Active</Badge>
                 </p>
               </div>
             </CardContent>
