@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -31,11 +32,56 @@ interface VerificationResult {
 }
 
 export default function VerifyPayment() {
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchType, setSearchType] = useState("rrr")
+  const [searchType, setSearchType] = useState("reference")
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState("")
+
+  // Auto-search if URL parameters are present
+  useEffect(() => {
+    const reference = searchParams.get("reference")
+    const auto = searchParams.get("auto")
+
+    if (reference && auto === "true") {
+      setSearchQuery(reference)
+      setSearchType("reference")
+      // Trigger automatic search
+      handleAutoSearch(reference)
+    }
+  }, [searchParams])
+
+  const handleAutoSearch = async (reference: string) => {
+    setIsSearching(true)
+    setError("")
+    setVerificationResult(null)
+
+    try {
+      const response = await fetch("/api/verify/payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          searchType: "reference",
+          searchQuery: reference,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setVerificationResult(data.payment)
+      } else {
+        setError(data.error || "Verification failed")
+      }
+    } catch (error) {
+      setError("Network error. Please try again.")
+    } finally {
+      setIsSearching(false)
+    }
+  }
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,7 +151,7 @@ export default function VerifyPayment() {
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Payment Verification Portal</CardTitle>
               <CardDescription className="text-gray-300">
-                Verify payment status using Remita RRR, Matric Number, or Email
+                Verify payment status using Payment Reference, Matric Number, or Email
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -138,7 +184,7 @@ export default function VerifyPayment() {
                       ? "Matric Number"
                       : searchType === "email"
                         ? "Email Address"
-                        : "Remita RRR"}
+                        : "Payment Reference"}
                   </Label>
                   <Input
                     id="search"
@@ -237,18 +283,6 @@ export default function VerifyPayment() {
                       </div>
                     </div>
                   </div>
-
-                  {/* {verificationResult.receipt_file_url && (
-                    <div className="border-t border-gray-700 pt-4">
-                      <h4 className="font-semibold mb-3">Receipt</h4>
-                      <Button
-                        className="bg-blue-600 hover:bg-blue-700"
-                        onClick={() => window.open(verificationResult.receipt_file_url, "_blank")}
-                      >
-                        View Receipt
-                      </Button>
-                    </div>
-                  )} */}
                 </div>
               </CardContent>
             </Card>
