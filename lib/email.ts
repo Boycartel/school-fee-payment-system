@@ -1,10 +1,12 @@
 import nodemailer from "nodemailer"
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
+const transporter = nodemailer.createTransporter({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // Use SSL
   auth: {
-    user: "talk2boycartel@gmail.com",
-    pass: "dyjuroiowjvhmswa",
+    user: process.env.GMAIL_USER || "talk2boycartel@gmail.com",
+    pass: process.env.GMAIL_PASSWORD || "ylfrgfpabtlstydjRequires",
   },
 })
 
@@ -13,7 +15,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
     const mailOptions = {
       from: {
         name: "The Federal Polytechnic Bida",
-        address: "talk2boycartel@gmail.com",
+        address: process.env.GMAIL_USER || "talk2boycartel@gmail.com",
       },
       to,
       subject,
@@ -25,6 +27,37 @@ export async function sendEmail(to: string, subject: string, html: string) {
     return { success: true, messageId: result.messageId }
   } catch (error) {
     console.error("Email sending failed:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function sendEmailWithAttachment(
+  to: string,
+  subject: string,
+  html: string,
+  attachments: Array<{
+    filename: string
+    content: Buffer
+    contentType: string
+  }>,
+) {
+  try {
+    const mailOptions = {
+      from: {
+        name: "The Federal Polytechnic Bida",
+        address: process.env.GMAIL_USER || "talk2boycartel@gmail.com",
+      },
+      to,
+      subject,
+      html,
+      attachments,
+    }
+
+    const result = await transporter.sendMail(mailOptions)
+    console.log("Email with attachment sent successfully:", result.messageId)
+    return { success: true, messageId: result.messageId }
+  } catch (error) {
+    console.error("Email with attachment sending failed:", error)
     return { success: false, error: error.message }
   }
 }
