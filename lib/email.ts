@@ -1,12 +1,20 @@
 import nodemailer from "nodemailer"
 
-interface EmailOptions {
+// Create transporter for Gmail SMTP
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // Use SSL
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASSWORD,
+  },
+})
+
+export interface EmailOptions {
   to: string
   subject: string
   html: string
-}
-
-interface EmailWithAttachmentOptions extends EmailOptions {
   attachments?: Array<{
     filename: string
     content: Buffer
@@ -16,122 +24,49 @@ interface EmailWithAttachmentOptions extends EmailOptions {
 
 export async function sendEmail(options: EmailOptions) {
   try {
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASSWORD,
-      },
-    })
-
-    const mailOptions = {
-      from: `"The Federal Polytechnic Bida" <${process.env.GMAIL_USER}>`,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-    }
-
-    const result = await transporter.sendMail(mailOptions)
-    console.log("Email sent successfully:", result.messageId)
-
-    return {
-      success: true,
-      messageId: result.messageId,
-    }
-  } catch (error) {
-    console.error("Failed to send email:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    }
-  }
-}
-
-export async function sendEmailWithAttachment(options: EmailWithAttachmentOptions) {
-  try {
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASSWORD,
-      },
-    })
-
-    const mailOptions = {
-      from: `"The Federal Polytechnic Bida" <${process.env.GMAIL_USER}>`,
+    const result = await transporter.sendMail({
+      from: `"Federal Polytechnic Bida" <${process.env.GMAIL_USER}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
       attachments: options.attachments,
-    }
+    })
 
-    const result = await transporter.sendMail(mailOptions)
-    console.log("Email with attachment sent successfully:", result.messageId)
-
-    return {
-      success: true,
-      messageId: result.messageId,
-    }
+    console.log("Email sent successfully:", result.messageId)
+    return { success: true, messageId: result.messageId }
   } catch (error) {
-    console.error("Failed to send email with attachment:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    }
+    console.error("Failed to send email:", error)
+    throw error
   }
 }
 
-export function getPaymentConfirmationTemplate({
-  studentName,
-  amount,
-  reference,
-  matricNumber,
-  department,
-  level,
-  session,
-  purpose,
-  date = new Date(),
-}: {
+export async function sendEmailWithAttachment(options: EmailOptions) {
+  return sendEmail(options)
+}
+
+export function getPaymentConfirmationTemplate(data: {
   studentName: string
+  matricNumber: string
   amount: number
   reference: string
-  matricNumber: string
-  department: string
-  level: string
-  session: string
-  purpose: string
-  date?: Date
+  paymentDate: string
 }) {
-  const fmtAmount = amount.toLocaleString("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 2,
-  })
-
-  const fmtDate = date.toLocaleDateString("en-GB")
-
   return `
-RECEIPT OF PAYMENT
-
-This is to acknowledge receipt of the sum of ${fmtAmount} (Naira) from:
-
-Student Name: ${studentName}
-Matric No. / Reg No.: ${matricNumber}
-Department: ${department}
-Level: ${level}
-Session: ${session}
-Purpose of Payment: ${purpose}
-Payment Reference: ${reference}
-Date of Payment: ${fmtDate}
-Payment Method: Paystack
-
-Thank you for your prompt payment.
-
-The Bursary Department,
-The Federal Polytechnic Bida
-  `.trim()
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #1e40af; text-align: center;">Payment Confirmation</h2>
+      <p>Dear ${data.studentName},</p>
+      <p>This is to confirm that your payment has been successfully processed.</p>
+      
+      <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0;">Payment Details:</h3>
+        <p><strong>Amount:</strong> ₦${data.amount.toLocaleString()}</p>
+        <p><strong>Reference:</strong> ${data.reference}</p>
+        <p><strong>Date:</strong> ${data.paymentDate}</p>
+        <p><strong>Matric Number:</strong> ${data.matricNumber}</p>
+      </div>
+      
+      <p>Thank you for your payment.</p>
+      <p>Best regards,<br>Federal Polytechnic Bida</p>
+    </div>
+  `
 }

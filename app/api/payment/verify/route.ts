@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { sql } from "@/lib/database"
 import { sendEmail } from "@/lib/email"
 import { generatePaymentReceiptEmail } from "@/lib/email-templates"
-
-const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,7 +78,6 @@ export async function POST(request: NextRequest) {
     const academicSession = metadata.academic_session || customFields.academic_session || "2024/2025"
     const installmentNumber = metadata.installment_number || customFields.installment_number || 1
     const totalInstallments = metadata.total_installments || customFields.total_installments || 1
-    const isFullPayment = metadata.is_full_payment || customFields.is_full_payment || false
 
     let studentInfo = null
     let feeInfo = null
@@ -96,11 +93,11 @@ export async function POST(request: NextRequest) {
           u.phone,
           u.level,
           u.passport_photo,
-          d.department_name,
-          s.school_name
+          d.name as department_name,
+          s.name as school_name
         FROM users u
         LEFT JOIN departments d ON u.department_id = d.id
-        LEFT JOIN schools s ON d.school_id = s.id
+        LEFT JOIN schools s ON u.school_id = s.id
         WHERE u.id = ${userId}
       `
 
@@ -116,12 +113,10 @@ export async function POST(request: NextRequest) {
           id,
           fee_name,
           description,
-          total_amount,
+          amount as total_amount,
           allows_installments,
           first_installment_percentage,
-          second_installment_percentage,
-          first_installment_paid,
-          second_installment_paid
+          second_installment_percentage
         FROM school_fees
         WHERE id = ${schoolFeeId}
       `
@@ -134,7 +129,7 @@ export async function POST(request: NextRequest) {
     // Generate receipt number
     const receiptNumber = `FPB${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`
 
-    // Save payment to database
+    // Save payment to database (only with columns that exist)
     const paymentResult = await sql`
       INSERT INTO payments (
         reference,
@@ -148,11 +143,8 @@ export async function POST(request: NextRequest) {
         academic_session,
         installment_number,
         total_installments,
-        is_full_payment,
-        user_email,
-        user_name,
-        paystack_data,
-        created_at
+        created_at,
+        updated_at
       ) VALUES (
         ${reference},
         ${userId},
@@ -165,10 +157,7 @@ export async function POST(request: NextRequest) {
         ${academicSession},
         ${installmentNumber},
         ${totalInstallments},
-        ${isFullPayment},
-        ${transactionData.customer.email},
-        ${studentInfo?.full_name || transactionData.customer.first_name + " " + transactionData.customer.last_name},
-        ${JSON.stringify(transactionData)},
+        NOW(),
         NOW()
       )
       RETURNING *
