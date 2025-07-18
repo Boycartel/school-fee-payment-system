@@ -1,31 +1,53 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, XCircle, Loader2, Mail } from "lucide-react"
+import { CheckCircle, XCircle, Loader2, Receipt, Mail, ArrowLeft } from "lucide-react"
+import Link from "next/link"
+
+interface PaymentResult {
+  success: boolean
+  message: string
+  payment?: {
+    reference: string
+    amount: number
+    status: string
+    receipt_number: string
+    created_at: string
+  }
+  student?: {
+    email: string
+    full_name: string
+  }
+}
 
 export default function PaymentCallback() {
   const searchParams = useSearchParams()
-  const router = useRouter()
-  const [status, setStatus] = useState<"loading" | "success" | "failed">("loading")
-  const [paymentData, setPaymentData] = useState<any>(null)
-  const [emailStatus, setEmailStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle")
+  const [result, setResult] = useState<PaymentResult | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const reference = searchParams.get("reference")
     const trxref = searchParams.get("trxref")
 
-    if (reference || trxref) {
-      verifyPayment(reference || trxref)
-    } else {
-      setStatus("failed")
+    if (!reference && !trxref) {
+      setResult({
+        success: false,
+        message: "No payment reference found",
+      })
+      setLoading(false)
+      return
     }
+
+    verifyPayment(reference || trxref || "")
   }, [searchParams])
 
   const verifyPayment = async (reference: string) => {
     try {
+      console.log("Verifying payment with reference:", reference)
+
       const response = await fetch("/api/payment/verify", {
         method: "POST",
         headers: {
@@ -35,84 +57,28 @@ export default function PaymentCallback() {
       })
 
       const data = await response.json()
+      console.log("Payment verification response:", data)
 
-      if (data.success && data.payment?.status === "success") {
-        setStatus("success")
-        setPaymentData(data.payment)
-
-        // Automatically send receipt email
-        sendReceiptEmail(reference)
-      } else {
-        setStatus("failed")
-      }
+      setResult(data)
     } catch (error) {
-      console.error("Payment verification failed:", error)
-      setStatus("failed")
-    }
-  }
-
-  const sendReceiptEmail = async (reference: string) => {
-    setEmailStatus("sending")
-
-    try {
-      const response = await fetch("/api/payment/send-receipt", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reference }),
+      console.error("Payment verification error:", error)
+      setResult({
+        success: false,
+        message: "Network error during verification",
       })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setEmailStatus("sent")
-      } else {
-        setEmailStatus("failed")
-      }
-    } catch (error) {
-      console.error("Failed to send receipt email:", error)
-      setEmailStatus("failed")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleReturnToDashboard = () => {
-    router.push("/student/dashboard")
-  }
-
-  const handleViewReceipt = () => {
-    if (paymentData?.reference) {
-      router.push(`/payment/receipt/${paymentData.reference}`)
-    }
-  }
-
-  if (status === "loading") {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-fpb-blue flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="flex flex-col items-center justify-center p-8">
-            <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Verifying Payment</h2>
-            <p className="text-gray-600 text-center">Please wait while we confirm your payment...</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (status === "failed") {
-    return (
-      <div className="min-h-screen bg-fpb-blue flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <CardTitle className="text-red-600">Payment Failed</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-gray-600">Your payment could not be processed. Please try again or contact support.</p>
-            <Button onClick={handleReturnToDashboard} className="w-full">
-              Return to Dashboard
-            </Button>
+      <div className="min-h-screen flex items-center justify-center bg-fpb-blue text-white">
+        <Card className="w-full max-w-md bg-fpb-blue-light border-gray-700 text-white">
+          <CardContent className="p-8 text-center">
+            <Loader2 className="w-16 h-16 mx-auto mb-4 text-blue-400 animate-spin" />
+            <h3 className="text-xl font-semibold mb-2">Verifying Payment</h3>
+            <p className="text-gray-300">Please wait while we confirm your payment...</p>
           </CardContent>
         </Card>
       </div>
@@ -120,59 +86,76 @@ export default function PaymentCallback() {
   }
 
   return (
-    <div className="min-h-screen bg-fpb-blue flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-fpb-blue text-white p-4">
+      <Card className="w-full max-w-md bg-fpb-blue-light border-gray-700 text-white">
         <CardHeader className="text-center">
-          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <CardTitle className="text-green-600">Payment Successful!</CardTitle>
+          <div className="flex justify-center mb-4">
+            {result?.success ? (
+              <CheckCircle className="w-16 h-16 text-green-400" />
+            ) : (
+              <XCircle className="w-16 h-16 text-red-400" />
+            )}
+          </div>
+          <CardTitle className={`text-xl ${result?.success ? "text-green-400" : "text-red-400"}`}>
+            {result?.success ? "Payment Successful!" : "Payment Failed"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="text-center space-y-2">
-            <p className="text-gray-600">Your payment has been processed successfully.</p>
-            {paymentData && (
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <p>
-                  <strong>Amount:</strong> ₦{paymentData.amount?.toLocaleString()}
-                </p>
-                <p>
-                  <strong>Reference:</strong> {paymentData.reference}
-                </p>
-                <p>
-                  <strong>Date:</strong> {new Date(paymentData.created_at).toLocaleDateString()}
-                </p>
-              </div>
-            )}
-          </div>
+          <p className="text-center text-gray-300">{result?.message}</p>
 
-          {/* Email Status */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-2 mb-2">
-              <Mail className="h-5 w-5 text-blue-600" />
-              <span className="font-medium text-blue-800">Receipt Email</span>
+          {result?.success && result.payment && (
+            <div className="bg-gray-800 p-4 rounded-md space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Reference:</span>
+                <span className="font-mono text-sm">{result.payment.reference}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Receipt:</span>
+                <span className="font-mono text-sm">{result.payment.receipt_number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Amount:</span>
+                <span className="font-semibold text-green-400">₦{Number(result.payment.amount).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Date:</span>
+                <span>{new Date(result.payment.created_at).toLocaleDateString()}</span>
+              </div>
             </div>
-            {emailStatus === "sending" && (
-              <div className="flex items-center space-x-2 text-blue-600">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Sending receipt to your email...</span>
-              </div>
-            )}
-            {emailStatus === "sent" && (
-              <p className="text-sm text-green-600">✓ Receipt sent to your email successfully!</p>
-            )}
-            {emailStatus === "failed" && (
-              <p className="text-sm text-red-600">
-                ✗ Failed to send receipt email. You can download it from your dashboard.
-              </p>
-            )}
-          </div>
+          )}
 
-          <div className="space-y-2">
-            <Button onClick={handleViewReceipt} className="w-full bg-transparent" variant="outline">
-              View Receipt
-            </Button>
-            <Button onClick={handleReturnToDashboard} className="w-full">
-              Return to Dashboard
-            </Button>
+          {result?.success && result.student && (
+            <div className="bg-blue-900/30 border border-blue-400/30 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-blue-300">
+                <Mail className="w-4 h-4" />
+                <span className="text-sm">Receipt sent to {result.student.email}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {result?.success && result.payment && (
+              <Link href={`/payment/receipt/${result.payment.reference}`}>
+                <Button className="w-full bg-green-600 hover:bg-green-700">
+                  <Receipt className="w-4 h-4 mr-2" />
+                  View Receipt
+                </Button>
+              </Link>
+            )}
+            <Link href="/student/dashboard">
+              <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </Link>
+            <Link href="/student/payment">
+              <Button
+                variant="outline"
+                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 bg-transparent"
+              >
+                Make Another Payment
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>

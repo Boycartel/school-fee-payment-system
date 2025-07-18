@@ -50,7 +50,35 @@ export function generatePaymentReceiptEmail(data: EmailData): string {
   // Format date properly
   const paymentDate = new Date(data.payment.payment_date)
   const formattedDate = paymentDate.toLocaleDateString("en-GB")
-  const formattedTime = paymentDate.toLocaleTimeString("en-GB")
+
+  // Create simple text receipt
+  const receiptText = `
+RECEIPT OF PAYMENT
+
+This is to acknowledge receipt of the sum of ₦${amount.toLocaleString()} (Naira) from:
+
+Student Name: ${data.student.full_name}
+Matric No. / Reg No.: ${data.student.matric_number}
+Department: ${data.student.department_name}
+Level: ${data.student.level}
+Session: ${data.payment.academic_session}
+Purpose of Payment: ${data.fee.fee_name}
+Payment Reference: ${data.payment.reference}
+Date of Payment: ${formattedDate}
+Payment Method: ${data.payment.payment_method || "Paystack"}
+
+Payment Summary:
+- Amount Paid: ₦${amount.toLocaleString()}
+- Total Fee: ₦${totalAmount.toLocaleString()}
+- Balance: ${balance > 0 ? `₦${balance.toLocaleString()}` : "FULLY PAID"}
+
+This payment has been verified and confirmed.
+
+---
+The Federal Polytechnic Bida
+Automated Fee Confirmation System
+Generated on ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleTimeString("en-GB")}
+  `
 
   return `
     <!DOCTYPE html>
@@ -60,433 +88,71 @@ export function generatePaymentReceiptEmail(data: EmailData): string {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Payment Receipt</title>
       <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
         body {
           font-family: Arial, sans-serif;
-          background: #f5f5f5;
-          color: black;
-          line-height: 1.4;
-          padding: 20px;
-        }
-        
-        .receipt-container {
-          max-width: 800px;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
           margin: 0 auto;
-          background: white;
-          border: 2px solid #d1d5db;
-          border-radius: 8px;
-          overflow: hidden;
+          padding: 20px;
+          background-color: #f4f4f4;
         }
-        
+        .container {
+          background-color: white;
+          padding: 30px;
+          border-radius: 10px;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
         .header {
-          background: #e5e7eb;
           text-align: center;
-          padding: 30px 20px;
-          border-bottom: 2px solid #d1d5db;
+          border-bottom: 3px solid #0e1c36;
+          padding-bottom: 20px;
+          margin-bottom: 30px;
         }
-        
-        .logo {
-          width: 80px;
-          height: 80px;
-          margin: 0 auto 15px;
-          background: white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid #3b82f6;
-        }
-        
-        .school-name {
+        .title {
+          color: #0e1c36;
           font-size: 24px;
           font-weight: bold;
-          margin-bottom: 8px;
-          color: #1f2937;
+          margin: 0;
         }
-        
-        .school-address {
-          font-size: 14px;
-          margin-bottom: 20px;
-          color: #6b7280;
+        .subtitle {
+          color: #4a90e2;
+          font-size: 16px;
+          margin: 5px 0 0 0;
+        }
+        .receipt-content {
+          background-color: #f8f9fa;
+          border: 1px solid #dee2e6;
+          border-radius: 8px;
+          padding: 20px;
+          margin: 20px 0;
+          font-family: monospace;
+          white-space: pre-line;
           line-height: 1.5;
         }
-        
-        .receipt-title {
-          background: white;
-          color: black;
-          padding: 12px 30px;
-          border-radius: 25px;
-          display: inline-block;
-          font-size: 18px;
-          font-weight: bold;
-          border: 2px solid #3b82f6;
-        }
-        
-        .content {
-          padding: 30px;
-        }
-        
-        .student-info {
-          background: #f8fafc;
-          border: 2px solid #d1d5db;
-          border-radius: 12px;
-          padding: 25px;
-          margin-bottom: 25px;
-          display: flex;
-          gap: 25px;
-          align-items: flex-start;
-        }
-        
-        .student-photo {
-          width: 100px;
-          height: 120px;
-          border: 2px solid #3b82f6;
-          border-radius: 8px;
-          background: #6b7280;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 12px;
-          flex-shrink: 0;
-          text-align: center;
-        }
-        
-        .student-details {
-          flex: 1;
-        }
-        
-        .section-title {
-          font-size: 18px;
-          font-weight: bold;
-          color: #3b82f6;
-          border-bottom: 2px solid #3b82f6;
-          padding-bottom: 8px;
-          margin-bottom: 20px;
-        }
-        
-        .details-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-        
-        .detail-item {
-          display: flex;
-          flex-direction: column;
-        }
-        
-        .detail-label {
-          font-size: 12px;
-          font-weight: bold;
-          color: #3b82f6;
-          text-transform: uppercase;
-          margin-bottom: 5px;
-          letter-spacing: 0.5px;
-        }
-        
-        .detail-value {
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
-        }
-        
-        .qr-section {
-          width: 120px;
-          text-align: center;
-          flex-shrink: 0;
-        }
-        
-        .qr-code {
-          width: 100px;
-          height: 100px;
-          background: white;
-          border: 2px solid #3b82f6;
-          border-radius: 8px;
-          margin: 0 auto 15px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 12px;
-          color: #3b82f6;
-        }
-        
-        .payment-table {
-          width: 100%;
-          border: 2px solid #3b82f6;
-          border-radius: 8px;
-          overflow: hidden;
-          margin-bottom: 25px;
-        }
-        
-        .payment-table th {
-          background: #000000;
-          color: white;
-          padding: 15px;
-          text-align: left;
-          font-size: 14px;
-          font-weight: bold;
-        }
-        
-        .payment-table td {
-          padding: 15px;
-          border-bottom: 1px solid #e5e7eb;
-          font-size: 14px;
-        }
-        
-        .payment-table tr:nth-child(even) {
-          background: #f9fafb;
-        }
-        
-        .payment-table tr:last-child td {
-          border-bottom: none;
-        }
-        
-        .amount-highlight {
-          font-weight: bold;
-          color: #059669;
-          font-size: 16px;
-        }
-        
-        .payment-summary {
-          background: #f1f5f9;
-          border-left: 4px solid #3b82f6;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 25px;
-        }
-        
-        .summary-title {
-          font-size: 16px;
-          font-weight: bold;
-          color: #3b82f6;
-          margin-bottom: 15px;
-        }
-        
-        .summary-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-        
-        .summary-item {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 10px;
-          padding: 5px 0;
-        }
-        
-        .summary-label {
-          font-size: 14px;
-          font-weight: 500;
-          color: #3b82f6;
-        }
-        
-        .summary-value {
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
-        }
-        
-        .summary-value.green {
-          color: #059669;
-        }
-        
-        .summary-value.red {
-          color: #dc2626;
-        }
-        
         .footer {
           text-align: center;
           margin-top: 30px;
           padding-top: 20px;
-          border-top: 2px solid #e5e7eb;
-        }
-        
-        .footer-title {
-          font-size: 14px;
-          font-weight: bold;
-          color: #3b82f6;
-          margin-bottom: 8px;
-        }
-        
-        .footer-text {
+          border-top: 1px solid #dee2e6;
+          color: #666;
           font-size: 12px;
-          color: #6b7280;
-          margin-bottom: 5px;
-        }
-        
-        @media (max-width: 600px) {
-          .student-info {
-            flex-direction: column;
-            text-align: center;
-          }
-          
-          .details-grid {
-            grid-template-columns: 1fr;
-          }
-          
-          .summary-grid {
-            grid-template-columns: 1fr;
-          }
         }
       </style>
     </head>
     <body>
-      <div class="receipt-container">
-        <!-- Header -->
+      <div class="container">
         <div class="header">
-          <div class="logo">
-            <span style="font-size: 12px; color: #3b82f6; font-weight: bold;">FPB</span>
-          </div>
-          <div class="school-name">The Federal Polytechnic Bida</div>
-          <div class="school-address">
-            Niger State, North Central, Nigeria<br>
-            KM 1.5, Doko Road, Bida Niger State<br>
-            Tel: +234-xxx-xxx-xxxx | Email: info@fedpolybida.edu.ng
-          </div>
-          <div class="receipt-title">PAYMENT RECEIPT</div>
+          <h1 class="title">The Federal Polytechnic Bida</h1>
+          <p class="subtitle">Fee Confirmation System</p>
         </div>
-
-        <!-- Content -->
-        <div class="content">
-          <!-- Student Information -->
-          <div class="student-info">
-            <div class="student-photo">
-              ${
-                data.student.passport_photo
-                  ? `<img src="${data.student.passport_photo}" alt="Student" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;">`
-                  : "No Photo<br>Available"
-              }
-            </div>
-            
-            <div class="student-details">
-              <div class="section-title">STUDENT INFORMATION</div>
-              <div class="details-grid">
-                <div class="detail-item">
-                  <div class="detail-label">Full Name</div>
-                  <div class="detail-value">${data.student.full_name}</div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">Matric Number</div>
-                  <div class="detail-value">${data.student.matric_number}</div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">Level</div>
-                  <div class="detail-value">${data.student.level}</div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">School</div>
-                  <div class="detail-value">${data.student.school_name}</div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">Department</div>
-                  <div class="detail-value">${data.student.department_name}</div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">Email</div>
-                  <div class="detail-value">${data.student.email}</div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="qr-section">
-              <div class="qr-code">QR Code</div>
-              <div style="font-size: 12px; color: #6b7280;">Scan to verify</div>
-            </div>
-          </div>
-
-          <!-- Payment Details Table -->
-          <table class="payment-table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Fee Type</td>
-                <td>${data.fee.fee_name}</td>
-              </tr>
-              <tr>
-                <td>Academic Session</td>
-                <td>${data.payment.academic_session}</td>
-              </tr>
-              <tr>
-                <td>Payment Type</td>
-                <td>${data.payment.fee_type}</td>
-              </tr>
-              <tr>
-                <td>Payment Date</td>
-                <td>${formattedDate}</td>
-              </tr>
-              <tr>
-                <td>Payment Time</td>
-                <td>${formattedTime}</td>
-              </tr>
-              <tr>
-                <td>Reference Number</td>
-                <td>${data.payment.reference}</td>
-              </tr>
-              <tr>
-                <td>Receipt Number</td>
-                <td>${data.payment.receipt_number}</td>
-              </tr>
-              <tr>
-                <td>Payment Method</td>
-                <td style="text-transform: capitalize;">${data.payment.payment_method || "Paystack"}</td>
-              </tr>
-              <tr style="background: #f3f4f6;">
-                <td style="font-weight: bold;">Amount Paid</td>
-                <td class="amount-highlight">₦${amount.toLocaleString()}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- Payment Summary -->
-          <div class="payment-summary">
-            <div class="summary-title">Payment Summary</div>
-            <div class="summary-grid">
-              <div>
-                <div class="summary-item">
-                  <span class="summary-label">Total Fee:</span>
-                  <span class="summary-value">₦${totalAmount.toLocaleString()}</span>
-                </div>
-                <div class="summary-item">
-                  <span class="summary-label">Total Paid:</span>
-                  <span class="summary-value green">₦${totalPaid.toLocaleString()}</span>
-                </div>
-              </div>
-              <div>
-                <div class="summary-item">
-                  <span class="summary-label">Balance:</span>
-                  <span class="summary-value ${balance > 0 ? "red" : "green"}">
-                    ${balance > 0 ? `₦${balance.toLocaleString()}` : "FULLY PAID ✓"}
-                  </span>
-                </div>
-                <div class="summary-item">
-                  <span class="summary-label">Status:</span>
-                  <span class="summary-value green">
-                    ✓ ${data.summary.is_fully_paid ? "PAYMENT COMPLETE" : "PARTIAL PAYMENT"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="footer">
-            <div class="footer-title">This is an official receipt from The Federal Polytechnic Bida</div>
-            <div class="footer-text">Generated on ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleTimeString("en-GB")}</div>
-            <div class="footer-text">For verification, scan the QR code or visit our portal with reference: ${data.payment.reference}</div>
-            <div class="footer-text">This receipt is valid and can be used for official purposes.</div>
-          </div>
+        
+        <div class="receipt-content">${receiptText}</div>
+        
+        <div class="footer">
+          <p><strong>The Federal Polytechnic Bida</strong></p>
+          <p>This is an automated email. Please do not reply to this message.</p>
+          <p>For support, contact the Bursary Department.</p>
         </div>
       </div>
     </body>
