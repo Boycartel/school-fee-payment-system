@@ -171,10 +171,11 @@ export async function POST(request: NextRequest) {
     // Generate receipt number
     const receiptNumber = `FPB${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`
 
-    // Save payment to database
+    // Save payment to database with explicit ID generation
     console.log("Saving payment to database...")
     const paymentResult = await sql`
       INSERT INTO payments (
+        id,
         reference,
         user_id,
         school_fee_id,
@@ -194,6 +195,7 @@ export async function POST(request: NextRequest) {
         created_at,
         updated_at
       ) VALUES (
+        gen_random_uuid(),
         ${reference},
         ${userId},
         ${schoolFeeId},
