@@ -330,6 +330,7 @@ export function generatePaymentReceiptEmail(paymentData: {
         <div class="footer">
           <p><strong>The Federal Polytechnic Bida</strong></p>
           <p>Automated Fee Confirmation System</p>
+          <p>A PDF copy of your receipt is attached to this email for your records.</p>
           <p>This is an automated email. Please do not reply to this message.</p>
           <p>For support, contact the Bursary Department.</p>
           <p>© ${new Date().getFullYear()} The Federal Polytechnic Bida. All rights reserved.</p>
