@@ -21,4 +21,5 @@ export async function generateReceiptPDF(receiptData: any) {
     console.error("Error generating PDF:", error)
     throw error
   }
+
 }
