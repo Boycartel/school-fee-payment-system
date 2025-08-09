@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/database"
-import { sendEmail } from "@/lib/email"
-import { generatePaymentReceiptEmail } from "@/lib/email-templates"
+import { sendPaymentReceiptEmail } from "@/lib/email"
 
 export async function POST(request: NextRequest) {
   try {
@@ -124,15 +123,9 @@ export async function POST(request: NextRequest) {
       },
     }
 
-    // Send email receipt
+    // Send email receipt with PDF attachment
     try {
-      const emailHtml = generatePaymentReceiptEmail(emailData)
-      const emailResult = await sendEmail({
-        to: paymentDetails.email,
-        subject: `Payment Receipt - ${paymentDetails.fee_name} (${paymentDetails.receipt_number})`,
-        html: emailHtml,
-      })
-
+      const emailResult = await sendPaymentReceiptEmail(emailData)
       console.log("Email sent result:", emailResult)
     } catch (emailError) {
       console.error("Failed to send email receipt:", emailError)

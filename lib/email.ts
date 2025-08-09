@@ -1,6 +1,5 @@
 import nodemailer from "nodemailer"
-import { ReceiptPDF } from "@/components/receipt-pdf"
-import { render } from "@react-pdf/renderer"
+import { generateReceiptPDF } from "./pdf-generator"
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -46,53 +45,33 @@ export async function sendEmail(options: EmailOptions) {
   }
 }
 
-export async function sendPaymentReceiptEmail(
-  to: string,
-  subject: string,
-  html: string,
-  receiptData: any
-) {
+export async function sendPaymentReceiptEmail(receiptData: any) {
   try {
-    // Generate the PDF buffer
+    // Generate PDF receipt
     const pdfBuffer = await generateReceiptPDF(receiptData)
 
+    // Generate HTML email template
+    const { generatePaymentReceiptEmail } = await import("./email-templates")
+    const emailHtml = generatePaymentReceiptEmail(receiptData)
+
     // Send email with PDF attachment
-    return await sendEmail({
-      to,
-      subject,
-      html,
+    const emailResult = await sendEmail({
+      to: receiptData.student.email,
+      subject: `Payment Receipt - ${receiptData.fee.fee_name} (${receiptData.payment.receipt_number})`,
+      html: emailHtml,
       attachments: [
         {
-          filename: `payment-receipt-${receiptData.payment.receipt_number}.pdf`,
+          filename: `Receipt-${receiptData.payment.receipt_number}.pdf`,
           content: pdfBuffer,
           contentType: "application/pdf",
         },
       ],
     })
+
+    return emailResult
   } catch (error) {
     console.error("Failed to send payment receipt email:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Failed to send payment receipt" 
-    }
-  }
-}
-
-async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
-  try {
-    // Create a PDF document
-    const pdfStream = await render(<ReceiptPDF receipt={receiptData} />)
-    
-    // Convert to buffer
-    return new Promise((resolve, reject) => {
-      const chunks: Uint8Array[] = []
-      pdfStream.on("data", (chunk) => chunks.push(chunk))
-      pdfStream.on("end", () => resolve(Buffer.concat(chunks)))
-      pdfStream.on("error", reject)
-    })
-  } catch (error) {
-    console.error("Error generating PDF:", error)
-    throw error
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
   }
 }
 

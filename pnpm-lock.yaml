@@ -119,6 +119,9 @@ importers:
       embla-carousel-react:
         specifier: latest
         version: 8.6.0(react@18.0.0)
+      geist:
+        specifier: ^1.3.1
+        version: 1.3.1(next@14.2.16(react-dom@18.0.0(react@18.0.0))(react@18.0.0))
       html5-qrcode:
         specifier: latest
         version: 2.3.8
@@ -1373,6 +1376,11 @@ packages:
 
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
+
+  geist@1.3.1:
+    resolution: {integrity: sha512-Q4gC1pBVPN+D579pBaz0TRRnGA4p9UK6elDY/xizXdFk/g4EKR5g0I+4p/Kj6gM0SajDBZ/0FvDV9ey9ud7BWw==}
+    peerDependencies:
+      next: '>=13.2.0'
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -3360,6 +3368,10 @@ snapshots:
     optional: true
 
   function-bind@1.1.2: {}
+
+  geist@1.3.1(next@14.2.16(react-dom@18.0.0(react@18.0.0))(react@18.0.0)):
+    dependencies:
+      next: 14.2.16(react-dom@18.0.0(react@18.0.0))(react@18.0.0)
 
   get-caller-file@2.0.5: {}
 
