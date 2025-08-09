@@ -1,6 +1,34 @@
 // components/receipt-pdf.tsx
 import { Page, Text, View, Document, StyleSheet, Image } from "@react-pdf/renderer"
-import { ReceiptData } from "./payment-receipt"
+
+interface ReceiptData {
+  student: {
+    full_name: string
+    matric_number: string
+    level: string
+    department_name: string
+    school_name: string
+  }
+  payment: {
+    reference: string
+    receipt_number: string
+    amount: number
+    payment_date: string
+    academic_session: string
+    payment_method: string
+    fee_type: string
+    total_installments?: number
+    installment_number?: number
+  }
+  fee: {
+    fee_name: string
+    total_amount: number
+  }
+  summary: {
+    total_paid: number
+    balance: number
+  }
+}
 
 // Create styles
 const styles = StyleSheet.create({
@@ -102,7 +130,7 @@ const styles = StyleSheet.create({
 
 export function ReceiptPDF({ receipt }: { receipt: ReceiptData }) {
   const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://your-domain.com"}/verify?reference=${receipt.payment.reference}&auto=true`
-  
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -159,9 +187,7 @@ export function ReceiptPDF({ receipt }: { receipt: ReceiptData }) {
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.label}>Payment Date</Text>
-              <Text style={styles.value}>
-                {new Date(receipt.payment.payment_date).toLocaleDateString()}
-              </Text>
+              <Text style={styles.value}>{new Date(receipt.payment.payment_date).toLocaleDateString()}</Text>
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.label}>Academic Session</Text>
@@ -188,9 +214,7 @@ export function ReceiptPDF({ receipt }: { receipt: ReceiptData }) {
             </View>
             <View style={styles.gridItem}>
               <Text style={styles.label}>Total Fee Amount</Text>
-              <Text style={[styles.value, styles.amount]}>
-                ₦{receipt.fee.total_amount.toLocaleString()}
-              </Text>
+              <Text style={[styles.value, styles.amount]}>₦{receipt.fee.total_amount.toLocaleString()}</Text>
             </View>
             {receipt.payment.total_installments && receipt.payment.total_installments > 1 && (
               <>
@@ -202,9 +226,7 @@ export function ReceiptPDF({ receipt }: { receipt: ReceiptData }) {
                 </View>
                 <View style={styles.gridItem}>
                   <Text style={styles.label}>This Payment</Text>
-                  <Text style={[styles.value, styles.amount]}>
-                    ₦{receipt.payment.amount.toLocaleString()}
-                  </Text>
+                  <Text style={[styles.value, styles.amount]}>₦{receipt.payment.amount.toLocaleString()}</Text>
                 </View>
               </>
             )}
@@ -224,16 +246,14 @@ export function ReceiptPDF({ receipt }: { receipt: ReceiptData }) {
           <View style={styles.summaryRow}>
             <Text>Outstanding Balance:</Text>
             <Text style={styles.amount}>
-              {receipt.summary.balance > 0 
-                ? `₦${receipt.summary.balance.toLocaleString()}` 
-                : "FULLY PAID"}
+              {receipt.summary.balance > 0 ? `₦${receipt.summary.balance.toLocaleString()}` : "FULLY PAID"}
             </Text>
           </View>
-          <View style={[styles.summaryRow, { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#0e1c36' }]}>
-            <Text style={{ fontWeight: 'bold' }}>Total Fee Amount:</Text>
-            <Text style={[styles.amount, { fontWeight: 'bold' }]}>
-              ₦{receipt.fee.total_amount.toLocaleString()}
-            </Text>
+          <View
+            style={[styles.summaryRow, { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#0e1c36" }]}
+          >
+            <Text style={{ fontWeight: "bold" }}>Total Fee Amount:</Text>
+            <Text style={[styles.amount, { fontWeight: "bold" }]}>₦{receipt.fee.total_amount.toLocaleString()}</Text>
           </View>
         </View>
 
