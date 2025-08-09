@@ -1,21 +1,314 @@
 import puppeteer from "puppeteer"
 
-export async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
-  let browser
-  try {
-    // Launch puppeteer browser
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    })
+interface ReceiptData {
+  student: {
+    full_name: string
+    matric_number: string
+    department: string
+    level: string
+    school: string
+  }
+  payment: {
+    reference: string
+    receipt_number: string
+    amount: number
+    payment_date: string
+    session: string
+    status: string
+  }
+  fees: Array<{
+    fee_name: string
+    amount: number
+  }>
+  summary: {
+    total_paid: number
+    balance: number
+  }
+}
 
+export async function generateReceiptPDF(receiptData: ReceiptData): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  })
+
+  try {
     const page = await browser.newPage()
 
-    // Generate HTML content for PDF
-    const htmlContent = generateReceiptHTML(receiptData)
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Payment Receipt</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: Arial, sans-serif;
+              font-size: 12px;
+              line-height: 1.4;
+              color: #333;
+              background: white;
+            }
+            
+            .receipt-container {
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #1e40af;
+              padding-bottom: 20px;
+            }
+            
+            .logo {
+              width: 80px;
+              height: 80px;
+              margin: 0 auto 15px;
+              background: #f3f4f6;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 24px;
+              font-weight: bold;
+              color: #1e40af;
+            }
+            
+            .school-name {
+              font-size: 18px;
+              font-weight: bold;
+              color: #1e40af;
+              margin-bottom: 5px;
+            }
+            
+            .receipt-title {
+              font-size: 16px;
+              font-weight: bold;
+              color: #000;
+              margin-top: 15px;
+            }
+            
+            .receipt-info {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 30px;
+              margin-bottom: 30px;
+            }
+            
+            .info-section h3 {
+              font-size: 14px;
+              font-weight: bold;
+              color: #1e40af;
+              margin-bottom: 10px;
+              border-bottom: 1px solid #e5e7eb;
+              padding-bottom: 5px;
+            }
+            
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+            }
+            
+            .info-label {
+              font-weight: 600;
+              color: #374151;
+            }
+            
+            .info-value {
+              color: #111827;
+            }
+            
+            .fees-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            
+            .fees-table th,
+            .fees-table td {
+              padding: 12px;
+              text-align: left;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            
+            .fees-table th {
+              background-color: #f9fafb;
+              font-weight: bold;
+              color: #374151;
+            }
+            
+            .fees-table tr:nth-child(even) {
+              background-color: #f9fafb;
+            }
+            
+            .summary-section {
+              background-color: #f0f9ff;
+              padding: 20px;
+              border-radius: 8px;
+              margin-bottom: 30px;
+            }
+            
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 10px;
+            }
+            
+            .summary-row.total {
+              font-weight: bold;
+              font-size: 14px;
+              border-top: 2px solid #1e40af;
+              padding-top: 10px;
+              margin-top: 10px;
+            }
+            
+            .footer {
+              text-align: center;
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 1px solid #e5e7eb;
+              color: #6b7280;
+              font-size: 11px;
+            }
+            
+            .verification-note {
+              background-color: #fef3c7;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              border-left: 4px solid #f59e0b;
+            }
+            
+            .status-paid {
+              color: #059669;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-container">
+            <div class="header">
+              <div class="logo">FPB</div>
+              <div class="school-name">THE FEDERAL POLYTECHNIC BIDA</div>
+              <div>Niger State, Nigeria</div>
+              <div class="receipt-title">PAYMENT RECEIPT</div>
+            </div>
+            
+            <div class="receipt-info">
+              <div class="info-section">
+                <h3>Student Information</h3>
+                <div class="info-row">
+                  <span class="info-label">Full Name:</span>
+                  <span class="info-value">${receiptData.student.full_name}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Matric Number:</span>
+                  <span class="info-value">${receiptData.student.matric_number}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Department:</span>
+                  <span class="info-value">${receiptData.student.department}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Level:</span>
+                  <span class="info-value">${receiptData.student.level}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">School:</span>
+                  <span class="info-value">${receiptData.student.school}</span>
+                </div>
+              </div>
+              
+              <div class="info-section">
+                <h3>Payment Information</h3>
+                <div class="info-row">
+                  <span class="info-label">Receipt Number:</span>
+                  <span class="info-value">${receiptData.payment.receipt_number}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Reference:</span>
+                  <span class="info-value">${receiptData.payment.reference}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Amount Paid:</span>
+                  <span class="info-value">₦${receiptData.payment.amount.toLocaleString()}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Payment Date:</span>
+                  <span class="info-value">${new Date(receiptData.payment.payment_date).toLocaleDateString()}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Session:</span>
+                  <span class="info-value">${receiptData.payment.session}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Status:</span>
+                  <span class="info-value status-paid">${receiptData.payment.status}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="verification-note">
+              <strong>Verification:</strong> This receipt can be verified online using the reference number: ${receiptData.payment.reference}
+            </div>
+            
+            <table class="fees-table">
+              <thead>
+                <tr>
+                  <th>Fee Description</th>
+                  <th>Amount (₦)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${receiptData.fees
+                  .map(
+                    (fee) => `
+                  <tr>
+                    <td>${fee.fee_name}</td>
+                    <td>₦${fee.amount.toLocaleString()}</td>
+                  </tr>
+                `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+            
+            <div class="summary-section">
+              <div class="summary-row">
+                <span>Total Paid:</span>
+                <span>₦${receiptData.summary.total_paid.toLocaleString()}</span>
+              </div>
+              <div class="summary-row">
+                <span>Balance:</span>
+                <span>₦${receiptData.summary.balance.toLocaleString()}</span>
+              </div>
+              <div class="summary-row total">
+                <span>Payment Status:</span>
+                <span class="status-paid">VERIFIED</span>
+              </div>
+            </div>
+            
+            <div class="footer">
+              <p>This is an official receipt from The Federal Polytechnic Bida</p>
+              <p>Generated on ${new Date().toLocaleString()}</p>
+              <p>For verification, visit our online portal or contact the bursary department</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
 
-    // Set content and generate PDF
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" })
+    await page.setContent(htmlContent)
 
     const pdfBuffer = await page.pdf({
       format: "A4",
@@ -28,282 +321,8 @@ export async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
       },
     })
 
-    return pdfBuffer
-  } catch (error) {
-    console.error("Error generating PDF:", error)
-    throw new Error("Failed to generate PDF receipt")
+    return Buffer.from(pdfBuffer)
   } finally {
-    if (browser) {
-      await browser.close()
-    }
+    await browser.close()
   }
-}
-
-function generateReceiptHTML(receiptData: any): string {
-  const { student, payment, fee, summary } = receiptData
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Payment Receipt</title>
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          font-family: 'Arial', sans-serif;
-          line-height: 1.6;
-          color: #333;
-          background: white;
-        }
-        
-        .container {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 30px;
-        }
-        
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-          border-bottom: 3px solid #0e1c36;
-          padding-bottom: 20px;
-        }
-        
-        .header h1 {
-          color: #0e1c36;
-          font-size: 24px;
-          font-weight: bold;
-          margin-bottom: 5px;
-        }
-        
-        .header p {
-          color: #4a90e2;
-          font-size: 14px;
-        }
-        
-        .receipt-title {
-          background: #f8f9fa;
-          border: 1px solid #dee2e6;
-          border-radius: 8px;
-          padding: 20px;
-          text-align: center;
-          margin-bottom: 30px;
-        }
-        
-        .receipt-title h2 {
-          font-size: 20px;
-          font-weight: bold;
-          color: #000;
-        }
-        
-        .section {
-          margin-bottom: 25px;
-        }
-        
-        .section-title {
-          font-size: 16px;
-          font-weight: bold;
-          color: #0e1c36;
-          border-bottom: 2px solid #4a90e2;
-          padding-bottom: 8px;
-          margin-bottom: 15px;
-        }
-        
-        .info-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 15px;
-        }
-        
-        .info-item {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid #eee;
-        }
-        
-        .info-label {
-          font-weight: bold;
-          color: #666;
-          text-transform: uppercase;
-          font-size: 12px;
-        }
-        
-        .info-value {
-          color: #333;
-          font-size: 14px;
-        }
-        
-        .summary {
-          background: #f8f9fa;
-          border-radius: 8px;
-          padding: 20px;
-          margin: 20px 0;
-        }
-        
-        .summary-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 10px;
-          font-size: 14px;
-        }
-        
-        .summary-total {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 15px;
-          padding-top: 15px;
-          border-top: 2px solid #0e1c36;
-          font-weight: bold;
-          font-size: 16px;
-        }
-        
-        .amount {
-          color: #0e1c36;
-          font-weight: bold;
-        }
-        
-        .verification-note {
-          background: #e7f3ff;
-          border-left: 4px solid #4a90e2;
-          padding: 15px;
-          margin: 20px 0;
-          border-radius: 4px;
-          font-size: 13px;
-          line-height: 1.5;
-        }
-        
-        .footer {
-          text-align: center;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #dee2e6;
-          font-size: 11px;
-          color: #666;
-          line-height: 1.4;
-        }
-        
-        @media print {
-          body { -webkit-print-color-adjust: exact; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-         Header 
-        <div class="header">
-          <h1>The Federal Polytechnic Bida</h1>
-          <p>Fee Confirmation System</p>
-        </div>
-
-         Receipt Title 
-        <div class="receipt-title">
-          <h2>PAYMENT RECEIPT</h2>
-        </div>
-
-         Student Information 
-        <div class="section">
-          <div class="section-title">Student Information</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Full Name:</span>
-              <span class="info-value">${student.full_name}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Matric Number:</span>
-              <span class="info-value">${student.matric_number}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Level:</span>
-              <span class="info-value">${student.level}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Department:</span>
-              <span class="info-value">${student.department_name}</span>
-            </div>
-          </div>
-        </div>
-
-         Payment Details 
-        <div class="section">
-          <div class="section-title">Payment Details</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Receipt Number:</span>
-              <span class="info-value">${payment.receipt_number}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Payment Reference:</span>
-              <span class="info-value">${payment.reference}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Payment Date:</span>
-              <span class="info-value">${new Date(payment.payment_date).toLocaleDateString("en-GB")}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Academic Session:</span>
-              <span class="info-value">${payment.academic_session}</span>
-            </div>
-          </div>
-        </div>
-
-         Fee Information 
-        <div class="section">
-          <div class="section-title">Fee Information</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Fee Name:</span>
-              <span class="info-value">${fee.fee_name}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Fee Type:</span>
-              <span class="info-value">${payment.fee_type}</span>
-            </div>
-          </div>
-        </div>
-
-         Payment Summary 
-        <div class="summary">
-          <div class="summary-row">
-            <span>Amount Paid (This Transaction):</span>
-            <span class="amount">₦${payment.amount.toLocaleString()}</span>
-          </div>
-          <div class="summary-row">
-            <span>Total Amount Paid:</span>
-            <span class="amount">₦${summary.total_paid.toLocaleString()}</span>
-          </div>
-          <div class="summary-row">
-            <span>Outstanding Balance:</span>
-            <span class="amount">₦${summary.balance.toLocaleString()}</span>
-          </div>
-          <div class="summary-total">
-            <span>Total Fee Amount:</span>
-            <span class="amount">₦${fee.total_amount.toLocaleString()}</span>
-          </div>
-        </div>
-
-         Verification Note 
-        <div class="verification-note">
-          <strong>Payment Verification:</strong> This payment has been successfully verified and processed. 
-          You can verify this payment anytime by visiting our verification portal with your payment reference: <strong>${payment.reference}</strong>
-        </div>
-
-         Footer 
-        <div class="footer">
-          <p><strong>The Federal Polytechnic Bida</strong></p>
-          <p>Automated Fee Confirmation System</p>
-          <p>This is an automated email. Please do not reply to this message.</p>
-          <p>For support, contact the Bursary Department.</p>
-          <p>© ${new Date().getFullYear()} The Federal Polytechnic Bida. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `
 }
