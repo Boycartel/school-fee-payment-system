@@ -1,15 +1,52 @@
+import puppeteer from 'puppeteer';
+
 export async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
   try {
-    // Fetch the receipt page HTML by calling the receipt API
-    const receiptHtml = await generateReceiptHTML(receiptData)
-
-    // Convert HTML to PDF using a simple approach
-    const pdfBuffer = await htmlToPdf(receiptHtml)
-
-    return pdfBuffer
+    const receiptHtml = await generateReceiptHTML(receiptData);
+    const pdfBuffer = await htmlToPdf(receiptHtml);
+    return pdfBuffer;
   } catch (error) {
-    console.error("Error generating PDF:", error)
-    throw error
+    console.error("Error generating PDF:", error);
+    throw error;
+  }
+}
+
+async function htmlToPdf(html: string): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  });
+  
+  try {
+    const page = await browser.newPage();
+    
+    // Set viewport for better rendering
+    await page.setViewport({ width: 1200, height: 1600 });
+    
+    // Set the HTML content
+    await page.setContent(html, {
+      waitUntil: 'networkidle0'
+    });
+
+    // Wait for any images or fonts to load
+    await page.evaluateHandle('document.fonts.ready');
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '0.4in',
+        right: '0.4in',
+        bottom: '0.4in',
+        left: '0.4in'
+      },
+      preferCSSPageSize: true
+    });
+
+    return pdfBuffer;
+  } finally {
+    await browser.close();
   }
 }
 
@@ -30,6 +67,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           background: white;
           padding: 0;
+          line-height: 1.4;
         }
         
         .print-container {
@@ -55,6 +93,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           display: flex;
           align-items: center;
           justify-content: center;
+          border: 2px solid #2563eb;
         }
         
         .logo-container img {
@@ -81,6 +120,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           border-radius: 9999px;
           display: inline-block;
           margin-top: 12px;
+          border: 2px solid #2563eb;
         }
         
         .receipt-title h2 {
@@ -104,6 +144,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
         .student-card-flex {
           display: flex;
           gap: 24px;
+          align-items: flex-start;
         }
         
         .student-photo {
@@ -115,13 +156,14 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           height: 128px;
           border: 2px solid #60a5fa;
           border-radius: 8px;
-          background: #475569;
+          background: #f3f4f6;
           display: flex;
           align-items: center;
           justify-content: center;
           color: #9ca3af;
           font-size: 12px;
           text-align: center;
+          overflow: hidden;
         }
         
         .student-photo-box img {
@@ -190,11 +232,8 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-        
-        .qr-box img {
-          width: 100%;
-          height: 100%;
+          font-size: 10px;
+          color: #6b7280;
         }
         
         .qr-text {
@@ -208,6 +247,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           border: 2px solid #60a5fa;
           border-collapse: collapse;
           margin-bottom: 24px;
+          font-size: 14px;
         }
         
         .payment-table th {
@@ -216,14 +256,12 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           padding: 12px;
           text-align: left;
           font-weight: 600;
-          font-size: 14px;
         }
         
         .payment-table td {
           padding: 12px;
           border-bottom: 1px solid #e5e7eb;
           color: #111827;
-          font-size: 14px;
         }
         
         .payment-table tr:nth-child(even) td {
@@ -326,7 +364,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
         <!-- Header -->
         <div class="print-header">
           <div class="logo-container">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" alt="Logo" />
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTI0IDRDMzEuNzMyIDQgMzggMTAuMjY4IDM4IDE4QzM4IDI1LjczMiAzMS43MzIgMzIgMjQgMzJDMTYuMjY4IDMyIDEwIDI1LjczMiAxMCAxOEMxMCAxMC4yNjggMTYuMjY4IDQgMjQgNFoiIGZpbGw9IiMyNTYzZWIiLz4KPHBhdGggZD0iTTI0IDI4QzI2LjIwOTEgMjggMjggMjYuMjA5MSAyOCAyNEMyOCAyMS43OTA5IDI2LjIwOTEgMjAgMjQgMjBDMjEuNzkwOSAyMCAyMCAyMS43OTA5IDIwIDI0QzIwIDI2LjIwOTEgMjEuNzkwOSAyOCAyNCAyOFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xOSAxNEMxOSAxMi44OTU0IDE5Ljg5NTQgMTIgMjEgMTJIMjdDMjguMTA0NiAxMiAyOSAxMi44OTU0IDI5IDE0VjE4QzI5IDE5LjEwNDYgMjguMTA0NiAyMCAyNyAyMEgyMUMxOS44OTU0IDIwIDE5IDE5LjEwNDYgMTkgMThWMTRaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="School Logo" />
           </div>
           <h1>The Federal Polytechnic Bida</h1>
           <p>Niger State, North Central, Nigeria<br/>KM 1.5, Doko Road, Bida Niger State</p>
@@ -346,7 +384,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
                   ${
                     receiptData.student.passport_photo
                       ? `<img src="${receiptData.student.passport_photo}" alt="Student Photo" />`
-                      : "No Photo"
+                      : "No Photo Available"
                   }
                 </div>
               </div>
@@ -360,25 +398,25 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
                   <div>
                     <div class="detail-item">
                       <div class="detail-label">Full Name</div>
-                      <div class="detail-value">${receiptData.student.full_name}</div>
+                      <div class="detail-value">${receiptData.student.full_name || 'N/A'}</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Matric Number</div>
-                      <div class="detail-value mono">${receiptData.student.matric_number}</div>
+                      <div class="detail-value mono">${receiptData.student.matric_number || 'N/A'}</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Level</div>
-                      <div class="detail-value">${receiptData.student.level}</div>
+                      <div class="detail-value">${receiptData.student.level || 'N/A'}</div>
                     </div>
                   </div>
                   <div>
                     <div class="detail-item">
                       <div class="detail-label">School</div>
-                      <div class="detail-value">${receiptData.student.school_name}</div>
+                      <div class="detail-value">${receiptData.student.school_name || 'N/A'}</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Department</div>
-                      <div class="detail-value">${receiptData.student.department_name}</div>
+                      <div class="detail-value">${receiptData.student.department_name || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
@@ -387,7 +425,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
               <!-- QR Code -->
               <div class="qr-code">
                 <div class="qr-box">
-                  [QR CODE]
+                  QR Code<br/>Placeholder
                 </div>
                 <div class="qr-text">Scan to verify</div>
               </div>
@@ -405,35 +443,35 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
             <tbody>
               <tr>
                 <td>Fee Type</td>
-                <td>${receiptData.fee.fee_name}</td>
+                <td>${receiptData.fee.fee_name || 'N/A'}</td>
               </tr>
               <tr>
                 <td>Academic Session</td>
-                <td>${receiptData.payment.academic_session}</td>
+                <td>${receiptData.payment.academic_session || 'N/A'}</td>
               </tr>
               <tr>
                 <td>Payment Type</td>
-                <td>${receiptData.payment.fee_type}</td>
+                <td>${receiptData.payment.fee_type || 'N/A'}</td>
               </tr>
               <tr>
                 <td>Payment Date</td>
-                <td>${new Date(receiptData.payment.payment_date).toLocaleDateString()}</td>
+                <td>${receiptData.payment.payment_date ? new Date(receiptData.payment.payment_date).toLocaleDateString() : 'N/A'}</td>
               </tr>
               <tr>
                 <td>Reference Number</td>
-                <td style="font-family: 'Courier New', monospace;">${receiptData.payment.reference}</td>
+                <td style="font-family: 'Courier New', monospace;">${receiptData.payment.reference || 'N/A'}</td>
               </tr>
               <tr>
                 <td>Receipt Number</td>
-                <td style="font-family: 'Courier New', monospace;">${receiptData.payment.receipt_number}</td>
+                <td style="font-family: 'Courier New', monospace;">${receiptData.payment.receipt_number || 'N/A'}</td>
               </tr>
               <tr>
                 <td>Payment Method</td>
-                <td style="text-transform: capitalize;">${receiptData.payment.payment_method}</td>
+                <td style="text-transform: capitalize;">${receiptData.payment.payment_method || 'N/A'}</td>
               </tr>
               <tr>
                 <td style="font-weight: bold;">Amount Paid</td>
-                <td style="font-weight: bold;"><span class="amount-paid">₦${receiptData.payment.amount.toLocaleString()}</span></td>
+                <td style="font-weight: bold;"><span class="amount-paid">₦${receiptData.payment.amount ? receiptData.payment.amount.toLocaleString() : '0'}</span></td>
               </tr>
             </tbody>
           </table>
@@ -445,24 +483,24 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
               <div>
                 <div class="summary-row">
                   <span class="summary-label">Total Fee:</span>
-                  <span class="summary-value">₦${receiptData.fee.total_amount.toLocaleString()}</span>
+                  <span class="summary-value">₦${receiptData.fee.total_amount ? receiptData.fee.total_amount.toLocaleString() : '0'}</span>
                 </div>
                 <div class="summary-row">
                   <span class="summary-label">Total Paid:</span>
-                  <span class="summary-value green">₦${receiptData.summary.total_paid.toLocaleString()}</span>
+                  <span class="summary-value green">₦${receiptData.summary.total_paid ? receiptData.summary.total_paid.toLocaleString() : '0'}</span>
                 </div>
               </div>
               <div>
                 <div class="summary-row">
                   <span class="summary-label">Balance:</span>
-                  <span class="summary-value ${receiptData.summary.balance > 0 ? "red" : "green"}">
-                    ${receiptData.summary.balance > 0 ? `₦${receiptData.summary.balance.toLocaleString()}` : "FULLY PAID ✓"}
+                  <span class="summary-value ${receiptData.summary.balance > 0 ? 'red' : 'green'}">
+                    ${receiptData.summary.balance > 0 ? `₦${receiptData.summary.balance.toLocaleString()}` : 'FULLY PAID ✓'}
                   </span>
                 </div>
                 <div class="summary-row">
                   <span class="summary-label">Status:</span>
-                  <span class="summary-value green">
-                    ${receiptData.summary.is_fully_paid ? "PAYMENT COMPLETE" : "PARTIAL PAYMENT"}
+                  <span class="summary-value ${receiptData.summary.is_fully_paid ? 'green' : 'red'}">
+                    ${receiptData.summary.is_fully_paid ? 'PAYMENT COMPLETE' : 'PARTIAL PAYMENT'}
                   </span>
                 </div>
               </div>
@@ -473,91 +511,11 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           <div class="footer-section">
             <p>This is an official receipt from The Federal Polytechnic Bida</p>
             <p class="small">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-            <p class="small">For verification, scan the QR code or visit our portal with reference: ${receiptData.payment.reference}</p>
+            <p class="small">For verification, scan the QR code or visit our portal with reference: ${receiptData.payment.reference || 'N/A'}</p>
           </div>
         </div>
       </div>
     </body>
     </html>
-  `
-}
-
-async function htmlToPdf(html: string): Promise<Buffer> {
-  // Use a simple library-free approach to convert HTML to PDF
-  // This creates a valid PDF structure from the HTML content
-  const pdfContent = generatePdfFromHtml(html)
-  return Buffer.from(pdfContent, "binary")
-}
-
-function generatePdfFromHtml(html: string): string {
-  // Create a simple but valid PDF that renders the HTML content
-  // This uses a base64 approach to embed the content
-  const lines: string[] = []
-
-  lines.push("%PDF-1.4")
-  lines.push("1 0 obj")
-  lines.push("<< /Type /Catalog /Pages 2 0 R >>")
-  lines.push("endobj")
-
-  lines.push("2 0 obj")
-  lines.push("<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
-  lines.push("endobj")
-
-  lines.push("3 0 obj")
-  lines.push(
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
-  )
-  lines.push("endobj")
-
-  // Simplified content - just text representation
-  const contentText = html
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-
-  const streamContent = `BT
-/F1 12 Tf
-50 750 Td
-${contentText.map((line) => `(${escapeText(line)}) Tj T*`).join("\n")}
-ET`
-
-  lines.push("4 0 obj")
-  lines.push(`<< /Length ${streamContent.length} >>`)
-  lines.push("stream")
-  lines.push(streamContent)
-  lines.push("endstream")
-  lines.push("endobj")
-
-  lines.push("5 0 obj")
-  lines.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
-  lines.push("endobj")
-
-  const output = lines.join("\n")
-  const xrefStart = output.length
-
-  lines.push("xref")
-  lines.push("0 6")
-  lines.push("0000000000 65535 f")
-  lines.push("0000000009 00000 n")
-  lines.push("0000000058 00000 n")
-  lines.push("0000000115 00000 n")
-  lines.push("0000000247 00000 n")
-  lines.push("0000000378 00000 n")
-
-  lines.push("trailer")
-  lines.push("<< /Size 6 /Root 1 0 R >>")
-  lines.push("startxref")
-  lines.push(xrefStart.toString())
-  lines.push("%%EOF")
-
-  return lines.join("\n")
-}
-
-function escapeText(text: string): string {
-  return text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)")
+  `;
 }
