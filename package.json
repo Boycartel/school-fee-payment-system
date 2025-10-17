@@ -53,6 +53,7 @@
     "next": "14.2.16",
     "next-themes": "latest",
     "nodemailer": "latest",
+    "pdfkit": "latest",
     "puppeteer": "latest",
     "qrcode": "latest",
     "react": "^18",
