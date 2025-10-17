@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chrome from 'chrome-aws-lambda';
 
 export async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
   try {
@@ -12,24 +13,31 @@ export async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
 }
 
 async function htmlToPdf(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
+  let browser = null;
   
   try {
-    const page = await browser.newPage();
+    // Get the Chromium executable path for the current environment
+    const executablePath = await chrome.executablePath;
     
-    // Set viewport for better rendering
-    await page.setViewport({ width: 1200, height: 1600 });
+    browser = await puppeteer.launch({
+      args: chrome.args,
+      executablePath,
+      headless: chrome.headless,
+      defaultViewport: chrome.defaultViewport,
+    });
+    
+    const page = await browser.newPage();
     
     // Set the HTML content
     await page.setContent(html, {
       waitUntil: 'networkidle0'
     });
 
-    // Wait for any images or fonts to load
+    // Wait for fonts to load
     await page.evaluateHandle('document.fonts.ready');
+    
+    // Small delay to ensure all content is rendered
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Generate PDF
     const pdfBuffer = await page.pdf({
@@ -46,10 +54,13 @@ async function htmlToPdf(html: string): Promise<Buffer> {
 
     return pdfBuffer;
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 
+// Your existing generateReceiptHTML function remains exactly the same
 async function generateReceiptHTML(receiptData: any): Promise<string> {
   return `
     <!DOCTYPE html>
