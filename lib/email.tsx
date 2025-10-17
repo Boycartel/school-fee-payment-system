@@ -11,11 +11,8 @@ const transporter = nodemailer.createTransport({
 
 export async function sendPaymentReceiptEmail(receiptData: any) {
   try {
-    console.log("Starting email process for:", receiptData.student.email)
-
     // Generate PDF receipt
     const pdfBuffer = await generateReceiptPDF(receiptData)
-    console.log("PDF generated successfully, size:", pdfBuffer.length)
 
     // Generate HTML email template
     const htmlContent = `
@@ -47,7 +44,7 @@ export async function sendPaymentReceiptEmail(receiptData: any) {
             
             <div class="content">
               <p>Dear ${receiptData.student.full_name},</p>
-              <p>Your payment has been successfully processed. Please find your receipt details below and a detailed PDF receipt is attached to this email:</p>
+              <p>Your payment has been successfully processed. Please find your receipt details below:</p>
               
               <div class="receipt-info">
                 <h3 style="color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px;">Payment Information</h3>
@@ -137,8 +134,7 @@ export async function sendPaymentReceiptEmail(receiptData: any) {
       ],
     }
 
-    const result = await transporter.sendMail(mailOptions)
-    console.log("Email sent successfully:", result.messageId)
+    await transporter.sendMail(mailOptions)
     return { success: true }
   } catch (error) {
     console.error("Error sending email:", error)
