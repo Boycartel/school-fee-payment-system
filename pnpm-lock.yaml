@@ -141,7 +141,7 @@ importers:
         specifier: latest
         version: 7.0.9
       pdfkit:
-        specifier: latest
+        specifier: 0.17.2
         version: 0.17.2
       puppeteer:
         specifier: latest
