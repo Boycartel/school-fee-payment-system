@@ -46,6 +46,7 @@
     "cmdk": "latest",
     "date-fns": "4.1.0",
     "embla-carousel-react": "latest",
+    "html2pdf.js": "latest",
     "html5-qrcode": "latest",
     "input-otp": "latest",
     "jsonwebtoken": "latest",
