@@ -26,9 +26,13 @@ export async function sendPaymentReceiptEmail(receiptData: any) {
             .header { text-align: center; background: #1e40af; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
             .content { background: #f9fafb; padding: 20px; }
             .receipt-info { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
-            .info-row { display: flex; justify-content: space-between; margin: 8px 0; }
+            .info-row { display: flex; justify-content: space-between; margin: 8px 0; border-bottom: 1px solid #e5e7eb; padding: 8px 0; }
+            .info-row:last-child { border-bottom: none; }
+            .info-label { font-weight: bold; color: #1e40af; }
+            .info-value { color: #333; }
             .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
             .status-paid { color: #059669; font-weight: bold; }
+            .amount { color: #059669; font-weight: bold; font-size: 14px; }
           </style>
         </head>
         <body>
@@ -43,52 +47,73 @@ export async function sendPaymentReceiptEmail(receiptData: any) {
               <p>Your payment has been successfully processed. Please find your receipt details below:</p>
               
               <div class="receipt-info">
-                <h3>Payment Information</h3>
+                <h3 style="color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px;">Payment Information</h3>
                 <div class="info-row">
-                  <span>Receipt Number:</span>
-                  <span><strong>${receiptData.payment.receipt_number}</strong></span>
+                  <span class="info-label">Receipt Number:</span>
+                  <span class="info-value">${receiptData.payment.receipt_number}</span>
                 </div>
                 <div class="info-row">
-                  <span>Reference:</span>
-                  <span>${receiptData.payment.reference}</span>
+                  <span class="info-label">Reference:</span>
+                  <span class="info-value">${receiptData.payment.reference}</span>
                 </div>
                 <div class="info-row">
-                  <span>Amount Paid:</span>
-                  <span><strong>₦${receiptData.payment.amount.toLocaleString()}</strong></span>
+                  <span class="info-label">Amount Paid:</span>
+                  <span class="amount">₦${receiptData.payment.amount.toLocaleString()}</span>
                 </div>
                 <div class="info-row">
-                  <span>Payment Date:</span>
-                  <span>${new Date(receiptData.payment.payment_date).toLocaleDateString()}</span>
+                  <span class="info-label">Payment Date:</span>
+                  <span class="info-value">${new Date(receiptData.payment.payment_date).toLocaleDateString()}</span>
                 </div>
                 <div class="info-row">
-                  <span>Status:</span>
-                  <span class="status-paid">VERIFIED</span>
+                  <span class="info-label">Status:</span>
+                  <span class="status-paid">✓ VERIFIED</span>
                 </div>
               </div>
               
               <div class="receipt-info">
-                <h3>Student Information</h3>
+                <h3 style="color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px;">Student Information</h3>
                 <div class="info-row">
-                  <span>Matric Number:</span>
-                  <span>${receiptData.student.matric_number}</span>
+                  <span class="info-label">Full Name:</span>
+                  <span class="info-value">${receiptData.student.full_name}</span>
                 </div>
                 <div class="info-row">
-                  <span>Department:</span>
-                  <span>${receiptData.student.department_name}</span>
+                  <span class="info-label">Matric Number:</span>
+                  <span class="info-value">${receiptData.student.matric_number}</span>
                 </div>
                 <div class="info-row">
-                  <span>Level:</span>
-                  <span>${receiptData.student.level}</span>
+                  <span class="info-label">Department:</span>
+                  <span class="info-value">${receiptData.student.department_name}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Level:</span>
+                  <span class="info-value">${receiptData.student.level}</span>
+                </div>
+              </div>
+
+              <div class="receipt-info">
+                <h3 style="color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px;">Payment Summary</h3>
+                <div class="info-row">
+                  <span class="info-label">Total Fee:</span>
+                  <span class="info-value">₦${receiptData.fee.total_amount.toLocaleString()}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Total Paid:</span>
+                  <span class="amount">₦${receiptData.summary.total_paid.toLocaleString()}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Balance:</span>
+                  <span class="info-value">${receiptData.summary.balance > 0 ? `₦${receiptData.summary.balance.toLocaleString()}` : "FULLY PAID ✓"}</span>
                 </div>
               </div>
               
-              <p><strong>Note:</strong> A detailed PDF receipt is attached to this email for your records.</p>
-              <p>You can also verify this payment online using the reference number: <strong>${receiptData.payment.reference}</strong></p>
+              <p><strong>Note:</strong> A detailed PDF receipt is attached to this email for your records. You can also download your receipt anytime from your student dashboard.</p>
+              <p>For verification purposes, reference number: <strong>${receiptData.payment.reference}</strong></p>
             </div>
             
             <div class="footer">
-              <p>This is an automated email from The Federal Polytechnic Bida</p>
-              <p>Please do not reply to this email</p>
+              <p><strong>The Federal Polytechnic Bida</strong></p>
+              <p>This is an automated email. Please do not reply to this email.</p>
+              <p>For inquiries, contact the Bursary Department</p>
             </div>
           </div>
         </body>
