@@ -13,31 +13,24 @@ export async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
 }
 
 async function htmlToPdf(html: string): Promise<Buffer> {
-  let browser = null;
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  });
   
   try {
-    // Get the Chromium executable path for the current environment
-    const executablePath = await chrome.executablePath;
-    
-    browser = await puppeteer.launch({
-      args: chrome.args,
-      executablePath,
-      headless: chrome.headless,
-      defaultViewport: chrome.defaultViewport,
-    });
-    
     const page = await browser.newPage();
+    
+    // Set viewport for better rendering
+    await page.setViewport({ width: 1200, height: 1600 });
     
     // Set the HTML content
     await page.setContent(html, {
       waitUntil: 'networkidle0'
     });
 
-    // Wait for fonts to load
+    // Wait for any images or fonts to load
     await page.evaluateHandle('document.fonts.ready');
-    
-    // Small delay to ensure all content is rendered
-    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Generate PDF
     const pdfBuffer = await page.pdf({
@@ -54,13 +47,10 @@ async function htmlToPdf(html: string): Promise<Buffer> {
 
     return pdfBuffer;
   } finally {
-    if (browser) {
-      await browser.close();
-    }
+    await browser.close();
   }
 }
 
-// Your existing generateReceiptHTML function remains exactly the same
 async function generateReceiptHTML(receiptData: any): Promise<string> {
   return `
     <!DOCTYPE html>
