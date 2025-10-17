@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer-core';
-import chrome from 'chrome-aws-lambda';
+import chromium from '@sparticuz/chromium-min';
 
 export async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
   try {
@@ -13,24 +13,46 @@ export async function generateReceiptPDF(receiptData: any): Promise<Buffer> {
 }
 
 async function htmlToPdf(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
+  let browser = null;
   
   try {
-    const page = await browser.newPage();
+    // For Vercel environment
+    const isDev = process.env.NODE_ENV === 'development';
     
-    // Set viewport for better rendering
-    await page.setViewport({ width: 1200, height: 1600 });
+    let executablePath: string;
+    let args: string[];
+
+    if (isDev) {
+      // Local development - use system Chrome or download one
+      executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || 
+        '/usr/bin/google-chrome' || 
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' ||
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+      args = [];
+    } else {
+      // Production - use Chromium from @sparticuz/chromium-min
+      executablePath = await chromium.executablePath();
+      args = chromium.args;
+    }
+
+    browser = await puppeteer.launch({
+      args: [...args, '--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath,
+      headless: true,
+    });
+    
+    const page = await browser.newPage();
     
     // Set the HTML content
     await page.setContent(html, {
       waitUntil: 'networkidle0'
     });
 
-    // Wait for any images or fonts to load
+    // Wait for fonts to load
     await page.evaluateHandle('document.fonts.ready');
+    
+    // Small delay to ensure all content is rendered
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Generate PDF
     const pdfBuffer = await page.pdf({
@@ -47,10 +69,13 @@ async function htmlToPdf(html: string): Promise<Buffer> {
 
     return pdfBuffer;
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 
+// Your existing generateReceiptHTML function remains exactly the same
 async function generateReceiptHTML(receiptData: any): Promise<string> {
   return `
     <!DOCTYPE html>
@@ -362,7 +387,7 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
     </head>
     <body>
       <div class="print-container">
-        <!-- Header -->
+        <!-- Your existing HTML content -->
         <div class="print-header">
           <div class="logo-container">
             <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTI0IDRDMzEuNzMyIDQgMzggMTAuMjY4IDM4IDE4QzM4IDI1LjczMiAzMS43MzIgMzIgMjQgMzJDMTYuMjY4IDMyIDEwIDI1LjczMiAxMCAxOEMxMCAxMC4yNjggMTYuMjY4IDQgMjQgNFoiIGZpbGw9IiMyNTYzZWIiLz4KPHBhdGggZD0iTTI0IDI4QzI2LjIwOTEgMjggMjggMjYuMjA5MSAyOCAyNEMyOCAyMS43OTA5IDI2LjIwOTEgMjAgMjQgMjBDMjEuNzkwOSAyMCAyMCAyMS43OTA5IDIwIDI0QzIwIDI2LjIwOTEgMjEuNzkwOSAyOCAyNCAyOFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xOSAxNEMxOSAxMi44OTU0IDE5Ljg5NTQgMTIgMjEgMTJIMjdDMjguMTA0NiAxMiAyOSAxMi44OTU0IDI5IDE0VjE4QzI5IDE5LjEwNDYgMjguMTA0NiAyMCAyNyAyMEgyMUMxOS44OTU0IDIwIDE5IDE5LjEwNDYgMTkgMThWMTRaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="School Logo" />
@@ -374,7 +399,6 @@ async function generateReceiptHTML(receiptData: any): Promise<string> {
           </div>
         </div>
 
-        <!-- Content -->
         <div class="print-content">
           <!-- Student Information Card -->
           <div class="student-card">

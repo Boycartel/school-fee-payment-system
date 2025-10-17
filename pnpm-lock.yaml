@@ -98,15 +98,15 @@ importers:
       '@react-pdf/renderer':
         specifier: latest
         version: 4.3.1(react@18.0.0)
+      '@sparticuz/chromium-min':
+        specifier: latest
+        version: 141.0.0
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.20(postcss@8.5.0)
       bcryptjs:
         specifier: latest
         version: 3.0.2
-      chrome-aws-lambda:
-        specifier: latest
-        version: 10.1.0(puppeteer-core@24.25.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -199,7 +199,7 @@ importers:
         specifier: ^8.5
         version: 8.5.0
       puppeteer:
-        specifier: 21.11.0
+        specifier: ^21.11.0
         version: 21.11.0(typescript@5.0.2)
       tailwindcss:
         specifier: ^3.4.17
@@ -1032,6 +1032,10 @@ packages:
       react-redux:
         optional: true
 
+  '@sparticuz/chromium-min@141.0.0':
+    resolution: {integrity: sha512-1EAR1NBrY4sa0hysDUCxCSI+9xc88/LYB3YjWFqMMu3CF82ATp8FzOeu7icwGxI02NAPcwzb0Uf1kIzsfH7Eiw==}
+    engines: {node: '>=20.11.0'}
+
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
 
@@ -1265,12 +1269,6 @@ packages:
   chokidar@3.6.0:
     resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
     engines: {node: '>= 8.10.0'}
-
-  chrome-aws-lambda@10.1.0:
-    resolution: {integrity: sha512-NZQVf+J4kqG4sVhRm3WNmOfzY0OtTSm+S8rg77pwePa9RCYHzhnzRs8YvNI6L9tALIW6RpmefWiPURt3vURXcw==}
-    engines: {node: '>= 10.16'}
-    peerDependencies:
-      puppeteer-core: ^10.1.0
 
   chromium-bidi@0.5.8:
     resolution: {integrity: sha512-blqh+1cEQbHBKmok3rVJkBlBxt9beKBgOsxbFgs7UJcoVbbeZ+K7+6liAsjgpc8l1Xd55cQUy14fXZdGSb4zIw==}
@@ -1556,6 +1554,15 @@ packages:
     resolution: {integrity: sha512-PpOwAdQ/YlXQ2vj8a3h8IipDuYRi3wceVQQGYWxNINccq40Anw7BlsEXCMbt1Zt+OLA6Fq9suIpIWD0OsnISlw==}
     engines: {node: '>=8'}
 
+  follow-redirects@1.15.11:
+    resolution: {integrity: sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==}
+    engines: {node: '>=4.0'}
+    peerDependencies:
+      debug: '*'
+    peerDependenciesMeta:
+      debug:
+        optional: true
+
   fontkit@2.0.4:
     resolution: {integrity: sha512-syetQadaUEDNdxdugga9CpEYVaQIxOwk7GlwZWWZ19//qW4zE5bknOKeMBDYAASwnpaSHKJITRLMF9m1fp3s6g==}
 
@@ -1727,13 +1734,6 @@ packages:
 
   jws@3.2.2:
     resolution: {integrity: sha512-YHlZCB6lMTllWDtSPHz/ZXTsi8S00usEV6v1tjq8tOUZzw7DpSDWVXjXDre6ed1w/pd495ODpHZYSdkRTsa0HA==}
-
-  lambdafs@2.1.1:
-    resolution: {integrity: sha512-x5k8JcoJWkWLvCVBzrl4pzvkEHSgSBqFjg3Dpsc4AcTMq7oUMym4cL/gRTZ6VM4mUMY+M0dIbQ+V1c1tsqqanQ==}
-    engines: {node: '>= 10.16'}
-    hasBin: true
-    bundledDependencies:
-      - tar-fs
 
   lilconfig@3.1.3:
     resolution: {integrity: sha512-/vlFKAoH5Cgt3Ie+JLhRbwOsCQePABiU3tJ1egGvyQ+33R/vcwM2Zl2QR/LzjsBeItPt3oSVXapn+m4nQDvpzw==}
@@ -3484,6 +3484,14 @@ snapshots:
       react: 18.0.0
       react-redux: 9.2.0(@types/react@18.0.0)(react@18.0.0)(redux@5.0.1)
 
+  '@sparticuz/chromium-min@141.0.0':
+    dependencies:
+      follow-redirects: 1.15.11
+      tar-fs: 3.1.1
+    transitivePeerDependencies:
+      - bare-buffer
+      - debug
+
   '@standard-schema/spec@1.0.0': {}
 
   '@standard-schema/utils@0.3.0': {}
@@ -3708,11 +3716,6 @@ snapshots:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.3
-
-  chrome-aws-lambda@10.1.0(puppeteer-core@24.25.0):
-    dependencies:
-      lambdafs: 2.1.1
-      puppeteer-core: 24.25.0
 
   chromium-bidi@0.5.8(devtools-protocol@0.0.1232444):
     dependencies:
@@ -3973,6 +3976,8 @@ snapshots:
       locate-path: 5.0.0
       path-exists: 4.0.0
 
+  follow-redirects@1.15.11: {}
+
   fontkit@2.0.4:
     dependencies:
       '@swc/helpers': 0.5.17
@@ -4156,8 +4161,6 @@ snapshots:
     dependencies:
       jwa: 1.4.2
       safe-buffer: 5.2.1
-
-  lambdafs@2.1.1: {}
 
   lilconfig@3.1.3: {}
 
